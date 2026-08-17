@@ -36,6 +36,14 @@
         {
           "contactsPermission": "Sober.Spend needs access to your contacts to split expenses with friends."
         }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "position": "absolute",
+          "backgroundColor": "#0D0D0D",
+          "enforceContrast": false
+        }
       ]
     ],
     "experiments": {

@@ -1,9 +1,10 @@
 import { useFonts } from 'expo-font';
+import { NavigationBar } from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 
 import { Colors, Fonts } from '@/constants/theme';
 import { useAuthStore } from '@/stores/auth-store';
@@ -34,15 +35,12 @@ export default function RootLayout() {
 
   return (
     <>
+      <NavigationBar hidden style="light" />
       <Stack
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: Colors.bg },
           animation: 'slide_from_right',
-          // Full-screen immersive mode — hide system navigation bar
-          navigationBarColor: Colors.bg,
-          statusBarTranslucent: true,
-          navigationBarTranslucent: true,
         }}>
         <Stack.Screen name="index" />
         <Stack.Screen
