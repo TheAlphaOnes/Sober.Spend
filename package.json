@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.11",
+    "@react-native-community/slider": "^5.2.0",
     "@supabase/supabase-js": "^2.112.3",
     "drizzle-orm": "^0.45.2",
     "expo": "~57.0.13",

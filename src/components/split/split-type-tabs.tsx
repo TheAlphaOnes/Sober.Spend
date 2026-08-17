@@ -5,8 +5,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 const TABS: { key: SplitType; label: string }[] = [
   { key: 'equal', label: 'EQUAL' },
   { key: 'exact', label: 'EXACT' },
-  { key: 'percent', label: 'PERCENT' },
-  { key: 'dutch', label: 'DUTCH' },
 ];
 
 interface SplitTypeTabsProps {

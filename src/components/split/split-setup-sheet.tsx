@@ -1,11 +1,9 @@
 import { NeoButton } from '@/components/ui/neo-button';
-import { DutchSplitView } from './dutch-split-view';
 import { EqualSplitView } from './equal-split-view';
 import { ExactSplitView } from './exact-split-view';
 import { GroupPickerChips } from './group-picker-chips';
 import { GroupSetupSheet } from './group-setup-sheet';
 import { PaidBySelector } from './paid-by-selector';
-import { PercentSplitView } from './percent-split-view';
 import { SplitPreview } from './split-preview';
 import { SplitTypeTabs } from './split-type-tabs';
 import { Borders, Colors, Fonts, FontSizes, Radii, Spacing } from '@/constants/theme';
@@ -44,9 +42,6 @@ export function SplitSetupSheet({ visible, onClose, pendingTransaction, onConfir
 
   // Split-specific state
   const [exactShares, setExactShares] = useState<Record<number, string>>({});
-  const [percentShares, setPercentShares] = useState<Record<number, string>>({});
-  const [orderAmounts, setOrderAmounts] = useState<Record<number, string>>({});
-  const [sharedCharges, setSharedCharges] = useState('');
 
   // Reset state when sheet opens
   const handleOpen = () => {
@@ -77,38 +72,11 @@ export function SplitSetupSheet({ visible, onClose, pendingTransaction, onConfir
       }));
     }
 
-    if (splitType === 'exact') {
-      return involvedContacts.map((c) => ({
-        contactId: c.id,
-        amount: parseFloat(exactShares[c.id] || '0') || 0,
-      }));
-    }
-
-    if (splitType === 'percent') {
-      return involvedContacts.map((c) => {
-        const pct = parseFloat(percentShares[c.id] || '0') || 0;
-        return {
-          contactId: c.id,
-          amount: Math.round((totalAmount * (pct / 100)) * 100) / 100,
-        };
-      });
-    }
-
-    // Dutch
-    return involvedContacts.map((c) => {
-      const order = parseFloat(orderAmounts[c.id] || '0') || 0;
-      const charges = parseFloat(sharedCharges || '0') || 0;
-      const subtotal = involvedContacts.reduce(
-        (s, c) => s + (parseFloat(orderAmounts[c.id] || '0') || 0),
-        0,
-      );
-      const proportion = subtotal > 0 ? order / subtotal : 1 / involvedContacts.length;
-      return {
-        contactId: c.id,
-        amount: Math.round((order + charges * proportion) * 100) / 100,
-        orderAmount: order,
-      };
-    });
+    // exact
+    return involvedContacts.map((c) => ({
+      contactId: c.id,
+      amount: parseFloat(exactShares[c.id] || '0') || 0,
+    }));
   })();
 
   const yourShare = calculatedShares.find((s) => s.contactId === SELF_CONTACT_ID)?.amount || 0;
@@ -151,17 +119,10 @@ export function SplitSetupSheet({ visible, onClose, pendingTransaction, onConfir
   const handleConfirm = () => {
     if (totalAmount <= 0 || involvedContacts.length < 2) return;
 
-    // Validate exact/percent
+    // Validate exact shares sum to total
     if (splitType === 'exact') {
       const sum = calculatedShares.reduce((s, sh) => s + sh.amount, 0);
       if (Math.abs(sum - totalAmount) > 0.01) return;
-    }
-    if (splitType === 'percent') {
-      const sum = involvedContacts.reduce(
-        (s, c) => s + (parseFloat(percentShares[c.id] || '0') || 0),
-        0,
-      );
-      if (Math.abs(sum - 100) > 0.5) return;
     }
 
     const splitExpenseId = createSplitExpense({
@@ -171,17 +132,10 @@ export function SplitSetupSheet({ visible, onClose, pendingTransaction, onConfir
       paidByContactId: paidById,
       groupId: mode === 'groups' ? selectedGroupId : null,
       splitType,
-      shares: calculatedShares.map((s) => {
-        const orderAmount =
-          'orderAmount' in s && typeof s.orderAmount === 'number'
-            ? s.orderAmount
-            : undefined;
-        return {
-          contactId: s.contactId,
-          amount: s.amount,
-          orderAmount,
-        };
-      }),
+      shares: calculatedShares.map((s) => ({
+        contactId: s.contactId,
+        amount: s.amount,
+      })),
     });
 
     // Open UPI to pay merchant if user is paying
@@ -202,9 +156,6 @@ export function SplitSetupSheet({ visible, onClose, pendingTransaction, onConfir
     setSplitType('equal');
     setPaidById(SELF_CONTACT_ID);
     setExactShares({});
-    setPercentShares({});
-    setOrderAmounts({});
-    setSharedCharges('');
     onClose();
   };
 
@@ -333,28 +284,6 @@ export function SplitSetupSheet({ visible, onClose, pendingTransaction, onConfir
                     onChange={(id, val) =>
                       setExactShares((prev) => ({ ...prev, [id]: val }))
                     }
-                  />
-                )}
-                {splitType === 'percent' && (
-                  <PercentSplitView
-                    totalAmount={totalAmount}
-                    contacts={involvedContacts}
-                    percents={percentShares}
-                    onChange={(id, val) =>
-                      setPercentShares((prev) => ({ ...prev, [id]: val }))
-                    }
-                  />
-                )}
-                {splitType === 'dutch' && (
-                  <DutchSplitView
-                    totalAmount={totalAmount}
-                    contacts={involvedContacts}
-                    orderAmounts={orderAmounts}
-                    sharedCharges={sharedCharges}
-                    onOrderChange={(id, val) =>
-                      setOrderAmounts((prev) => ({ ...prev, [id]: val }))
-                    }
-                    onSharedChargesChange={setSharedCharges}
                   />
                 )}
               </View>

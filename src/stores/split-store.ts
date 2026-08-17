@@ -80,7 +80,6 @@ function rowToSplitShare(row: typeof sharesTable.$inferSelect): SplitShare {
     splitExpenseId: row.split_expense_id,
     contactId: row.contact_id,
     shareAmount: row.share_amount,
-    orderAmount: row.order_amount,
     settled: row.settled === 1,
     settledDate: row.settled_date,
   };
@@ -442,7 +441,6 @@ export const useSplitStore = create<SplitState>((set, get) => ({
             split_expense_id: splitExpenseId,
             contact_id: share.contactId,
             share_amount: share.amount,
-            order_amount: share.orderAmount ?? null,
             settled: isOwnShareSettled ? 1 : 0,
             settled_date: isOwnShareSettled ? now : null,
           })

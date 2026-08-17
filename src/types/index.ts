@@ -101,7 +101,7 @@ export interface WishlistItem {
 /** Reserved contact id for the user themself. */
 export const SELF_CONTACT_ID = 0;
 
-export type SplitType = 'equal' | 'exact' | 'percent' | 'dutch';
+export type SplitType = 'equal' | 'exact';
 export type SettlementMethod = 'upi' | 'cash' | 'other';
 
 export interface Contact {
@@ -152,7 +152,6 @@ export interface SplitShare {
   splitExpenseId: number;
   contactId: number;
   shareAmount: number;
-  orderAmount: number | null;
   settled: boolean;
   settledDate?: string | null;
 }
@@ -168,12 +167,6 @@ export interface Settlement {
   createdAt: string;
 }
 
-/** A shared item in a Dutch split (e.g. garlic bread that 3 of 4 people ate). */
-export interface SharedItem {
-  amount: number;
-  consumerIds: number[];
-}
-
 /** Input for creating a split expense. */
 export interface CreateSplitExpenseInput {
   totalAmount: number;
@@ -183,7 +176,7 @@ export interface CreateSplitExpenseInput {
   paidByContactId: number;
   groupId?: number | null;
   splitType: SplitType;
-  shares: { contactId: number; amount: number; orderAmount?: number }[];
+  shares: { contactId: number; amount: number }[];
 }
 
 /** Result of simplifying debts within a group. */

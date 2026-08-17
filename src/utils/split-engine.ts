@@ -4,7 +4,6 @@ import type {
   SimplifiedTransaction,
   SplitExpense,
   SplitShare,
-  SharedItem,
 } from '@/types';
 import { SELF_CONTACT_ID } from '@/types';
 
@@ -45,72 +44,6 @@ export function validateExactShares(shares: number[], total: number): boolean {
 export function exactSharesDifference(shares: number[], total: number): number {
   const sum = shares.reduce((s, v) => s + v, 0);
   return Math.round((total - sum) * 100) / 100;
-}
-
-/**
- * Validate that percentages sum to 100.
- */
-export function validatePercentShares(percents: number[]): boolean {
-  const sum = percents.reduce((s, v) => s + v, 0);
-  return Math.abs(sum - 100) < 0.5;
-}
-
-/**
- * Calculate shares from percentages.
- */
-export function calculatePercentShares(
-  total: number,
-  percents: number[],
-): number[] {
-  return percents.map((p) => Math.round((total * (p / 100)) * 100) / 100);
-}
-
-/**
- * Calculate Dutch shares — each person pays for what they ordered,
- * plus shared items (split among consumers) and shared charges (tax/tip,
- * split proportionally based on each person's subtotal).
- *
- * Returns a map of contactId → { shareAmount, orderAmount }.
- */
-export function calculateDutchShares(
-  orderAmounts: Map<number, number>,
-  sharedItems: SharedItem[],
-  sharedCharges: number,
-  allContactIds: number[],
-): Map<number, { shareAmount: number; orderAmount: number }> {
-  const result = new Map<number, { shareAmount: number; orderAmount: number }>();
-
-  // 1. Start with each person's individual order amount
-  const subtotals = new Map<number, number>();
-  for (const contactId of allContactIds) {
-    subtotals.set(contactId, orderAmounts.get(contactId) || 0);
-  }
-
-  // 2. Add shared items to the consumers' subtotals (split equally among consumers)
-  for (const item of sharedItems) {
-    if (item.consumerIds.length === 0) continue;
-    const perPerson = item.amount / item.consumerIds.length;
-    for (const consumerId of item.consumerIds) {
-      subtotals.set(consumerId, (subtotals.get(consumerId) || 0) + perPerson);
-    }
-  }
-
-  // 3. Calculate subtotal sum for proportional charge distribution
-  const subtotalSum = Array.from(subtotals.values()).reduce((s, v) => s + v, 0);
-
-  // 4. Add proportional shared charges to each person
-  for (const contactId of allContactIds) {
-    const subtotal = subtotals.get(contactId) || 0;
-    const proportion =
-      subtotalSum > 0 ? subtotal / subtotalSum : 1 / allContactIds.length;
-    const shareAmount = subtotal + sharedCharges * proportion;
-    result.set(contactId, {
-      shareAmount: Math.round(shareAmount * 100) / 100,
-      orderAmount: orderAmounts.get(contactId) || 0,
-    });
-  }
-
-  return result;
 }
 
 // ---------------------------------------------------------------------------
