@@ -173,7 +173,10 @@ export function SplitSetupSheet({ visible, onClose, pendingTransaction, onConfir
               </Pressable>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={styles.scroll}
+              contentContainerStyle={styles.scrollContent}>
               {/* Amount + Merchant */}
               <View style={styles.amountBox}>
                 <Text style={styles.currency}>₹</Text>
@@ -366,6 +369,9 @@ const styles = StyleSheet.create({
   },
   scroll: {
     maxHeight: 500,
+  },
+  scrollContent: {
+    paddingBottom: Spacing.xl,
   },
   amountBox: {
     flexDirection: 'row',
