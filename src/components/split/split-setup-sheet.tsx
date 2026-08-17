@@ -1,5 +1,4 @@
 import { NeoButton } from '@/components/ui/neo-button';
-import { ContactPicker } from './contact-picker';
 import { DutchSplitView } from './dutch-split-view';
 import { EqualSplitView } from './equal-split-view';
 import { ExactSplitView } from './exact-split-view';
@@ -13,9 +12,10 @@ import { Borders, Colors, Fonts, FontSizes, Radii, Spacing } from '@/constants/t
 import { useSplitStore } from '@/stores/split-store';
 import { calculateEqualShares } from '@/utils/split-engine';
 import { sanitizeNumericInput } from '@/utils/format';
+import { pickPhoneContact } from '@/utils/contacts';
 import type { Contact, PendingTransaction, SplitType } from '@/types';
 import { SELF_CONTACT_ID } from '@/types';
-import { X } from 'lucide-react-native';
+import { UserPlus, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -29,7 +29,7 @@ interface SplitSetupSheetProps {
 type Mode = 'groups' | 'people';
 
 export function SplitSetupSheet({ visible, onClose, pendingTransaction, onConfirm }: SplitSetupSheetProps) {
-  const { contacts, groups, createSplitExpense, getGroupMembers } = useSplitStore();
+  const { contacts, groups, createSplitExpense, getGroupMembers, addContact } = useSplitStore();
 
   const [mode, setMode] = useState<Mode>('groups');
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
@@ -126,6 +126,26 @@ export function SplitSetupSheet({ visible, onClose, pendingTransaction, onConfir
       next.add(contactId);
     }
     setSelectedContactIds(next);
+  };
+
+  const handlePickContact = async () => {
+    const picked = await pickPhoneContact();
+    if (!picked) return;
+
+    const existing = contacts.find((c) => c.phone === picked.phone);
+    if (existing) {
+      toggleContact(existing.id);
+      return;
+    }
+
+    const newId = addContact({
+      phone: picked.phone,
+      name: picked.name,
+      avatarColor: picked.avatarColor,
+    });
+    if (newId !== -1) {
+      toggleContact(newId);
+    }
   };
 
   const handleConfirm = () => {
@@ -264,11 +284,35 @@ export function SplitSetupSheet({ visible, onClose, pendingTransaction, onConfir
                 </View>
               ) : (
                 <View style={styles.section}>
-                  <ContactPicker
-                    contacts={contacts}
-                    selectedIds={selectedContactIds}
-                    onToggle={toggleContact}
-                  />
+                  {/* Add from contacts button */}
+                  <Pressable onPress={handlePickContact} style={styles.addContactBtn}>
+                    <UserPlus size={16} color={Colors.accent} strokeWidth={2.5} />
+                    <Text style={styles.addContactText}>Add from contacts</Text>
+                  </Pressable>
+
+                  {/* Selected contacts */}
+                  {contacts.filter((c) => !c.isSelf && selectedContactIds.has(c.id)).length > 0 && (
+                    <View style={styles.selectedList}>
+                      {contacts
+                        .filter((c) => !c.isSelf && selectedContactIds.has(c.id))
+                        .map((contact) => (
+                          <Pressable
+                            key={contact.id}
+                            onPress={() => toggleContact(contact.id)}
+                            style={styles.selectedChip}>
+                            <View style={[styles.chipAvatar, { backgroundColor: contact.avatarColor }]}>
+                              <Text style={styles.chipAvatarText}>
+                                {contact.name.charAt(0).toUpperCase()}
+                              </Text>
+                            </View>
+                            <Text style={styles.chipName} numberOfLines={1}>
+                              {contact.name}
+                            </Text>
+                            <X size={14} color={Colors.textMuted} strokeWidth={2.5} />
+                          </Pressable>
+                        ))}
+                    </View>
+                  )}
                 </View>
               )}
 
@@ -496,5 +540,56 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: Spacing.lg,
+  },
+  addContactBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    borderWidth: Borders.thin,
+    borderColor: Colors.accent,
+    borderRadius: Radii.md,
+    borderStyle: 'dashed',
+  },
+  addContactText: {
+    fontFamily: Fonts.display,
+    fontSize: FontSizes.sm,
+    color: Colors.accent,
+  },
+  selectedList: {
+    marginTop: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  selectedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    borderWidth: Borders.thin,
+    borderColor: Colors.border,
+    borderRadius: Radii.md,
+    backgroundColor: Colors.bg,
+  },
+  chipAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: Borders.thin,
+    borderColor: Colors.black,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipAvatarText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.black,
+  },
+  chipName: {
+    flex: 1,
+    fontFamily: Fonts.display,
+    fontSize: FontSizes.sm,
+    color: Colors.white,
   },
 });

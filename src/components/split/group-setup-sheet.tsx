@@ -2,9 +2,8 @@ import { NeoButton } from '@/components/ui/neo-button';
 import { Borders, Colors, Fonts, FontSizes, Radii, Spacing } from '@/constants/theme';
 import { GROUP_TEMPLATES } from '@/utils/split-engine';
 import { useSplitStore } from '@/stores/split-store';
-import { importPhoneContacts } from '@/utils/contacts';
-import type { Contact } from '@/types';
-import { Briefcase, Heart, Home, Plane, Plus, Users, X } from 'lucide-react-native';
+import { pickPhoneContact } from '@/utils/contacts';
+import { Briefcase, Heart, Home, Plane, Plus, UserPlus, Users, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -28,16 +27,32 @@ export function GroupSetupSheet({ visible, onClose, onCreated }: GroupSetupSheet
   const [selectedTemplate, setSelectedTemplate] = useState<typeof GROUP_TEMPLATES[number] | null>(null);
   const [name, setName] = useState('');
   const [selectedContactIds, setSelectedContactIds] = useState<Set<number>>(new Set());
-  const [phoneContacts, setPhoneContacts] = useState<Array<{ phone: string; name: string; avatarColor: string }>>([]);
 
   const handleTemplateSelect = (template: typeof GROUP_TEMPLATES[number]) => {
     setSelectedTemplate(template);
     setName(template.label);
   };
 
-  const handleImportContacts = async () => {
-    const imported = await importPhoneContacts();
-    setPhoneContacts(imported);
+  const handlePickContact = async () => {
+    const picked = await pickPhoneContact();
+    if (!picked) return;
+
+    // Check if contact already exists by phone
+    const existing = contacts.find((c) => c.phone === picked.phone);
+    if (existing) {
+      toggleContact(existing.id);
+      return;
+    }
+
+    // Add to DB, then select
+    const newId = addContact({
+      phone: picked.phone,
+      name: picked.name,
+      avatarColor: picked.avatarColor,
+    });
+    if (newId !== -1) {
+      toggleContact(newId);
+    }
   };
 
   const toggleContact = (contactId: number) => {
@@ -71,7 +86,6 @@ export function GroupSetupSheet({ visible, onClose, onCreated }: GroupSetupSheet
     setSelectedTemplate(null);
     setName('');
     setSelectedContactIds(new Set());
-    setPhoneContacts([]);
     onCreated(groupId);
   };
 
@@ -79,25 +93,10 @@ export function GroupSetupSheet({ visible, onClose, onCreated }: GroupSetupSheet
     setSelectedTemplate(null);
     setName('');
     setSelectedContactIds(new Set());
-    setPhoneContacts([]);
     onClose();
   };
 
-  // Merge existing contacts with imported phone contacts
-  const allContacts: Contact[] = [
-    ...contacts,
-    ...phoneContacts
-      .filter((pc) => !contacts.some((c) => c.phone === pc.phone))
-      .map((pc) => ({
-        id: -1,
-        phone: pc.phone,
-        name: pc.name,
-        avatarColor: pc.avatarColor,
-        hasApp: false,
-        isSelf: false,
-        createdAt: '',
-      })),
-  ];
+  const nonSelfContacts = contacts.filter((c) => !c.isSelf);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
@@ -147,31 +146,20 @@ export function GroupSetupSheet({ visible, onClose, onCreated }: GroupSetupSheet
                 />
 
                 <Text style={styles.label}>ADD MEMBERS</Text>
-                <Pressable onPress={handleImportContacts} style={styles.importBtn}>
-                  <Text style={styles.importText}>Import from phone contacts</Text>
+                <Pressable onPress={handlePickContact} style={styles.importBtn}>
+                  <UserPlus size={16} color={Colors.accent} strokeWidth={2.5} />
+                  <Text style={styles.importText}>Add from contacts</Text>
                 </Pressable>
 
-                <View style={styles.contactList}>
-                  {allContacts
-                    .filter((c) => !c.isSelf)
-                    .map((contact) => {
+                {/* Selected members */}
+                {nonSelfContacts.length > 0 && (
+                  <View style={styles.contactList}>
+                    {nonSelfContacts.map((contact) => {
                       const isSelected = selectedContactIds.has(contact.id);
                       return (
                         <Pressable
-                          key={`${contact.id}-${contact.phone}`}
-                          onPress={() => {
-                            if (contact.id === -1) {
-                              // New contact from phone — add to DB first
-                              const newId = addContact({
-                                phone: contact.phone,
-                                name: contact.name,
-                                avatarColor: contact.avatarColor,
-                              });
-                              if (newId !== -1) toggleContact(newId);
-                            } else {
-                              toggleContact(contact.id);
-                            }
-                          }}
+                          key={contact.id}
+                          onPress={() => toggleContact(contact.id)}
                           style={styles.contactRow}>
                           <View style={[styles.avatar, { backgroundColor: contact.avatarColor }]}>
                             <Text style={styles.avatarText}>
@@ -185,7 +173,14 @@ export function GroupSetupSheet({ visible, onClose, onCreated }: GroupSetupSheet
                         </Pressable>
                       );
                     })}
-                </View>
+                  </View>
+                )}
+
+                {selectedContactIds.size > 0 && (
+                  <Text style={styles.selectedCount}>
+                    {selectedContactIds.size} member{selectedContactIds.size > 1 ? 's' : ''} selected
+                  </Text>
+                )}
               </>
             )}
           </ScrollView>
@@ -282,11 +277,14 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   importBtn: {
-    paddingVertical: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
     borderWidth: Borders.thin,
     borderColor: Colors.accent,
     borderRadius: Radii.md,
-    alignItems: 'center',
     borderStyle: 'dashed',
   },
   importText: {
@@ -334,6 +332,13 @@ const styles = StyleSheet.create({
   checkboxActive: {
     backgroundColor: Colors.accent,
     borderColor: Colors.black,
+  },
+  selectedCount: {
+    fontFamily: Fonts.display,
+    fontSize: FontSizes.xs,
+    color: Colors.textMuted,
+    marginTop: Spacing.sm,
+    textAlign: 'center',
   },
   actions: {
     marginTop: Spacing.lg,
