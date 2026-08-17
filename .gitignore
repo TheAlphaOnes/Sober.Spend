@@ -32,6 +32,13 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+
+# old reference app (nested git repo)
+.info/SoberSpend.app
+
+# Supabase CLI local state
+supabase/.temp/
 
 # typescript
 *.tsbuildinfo
