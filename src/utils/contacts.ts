@@ -1,4 +1,4 @@
-import * as Contacts from 'expo-contacts';
+import { Contact, ContactField, requestPermissionsAsync } from 'expo-contacts';
 import { colorFromPhone, normalizePhone } from './split-engine';
 
 /**
@@ -7,6 +7,8 @@ import { colorFromPhone, normalizePhone } from './split-engine';
  *
  * Only imports contacts that have a phone number. Each contact gets
  * a deterministic avatar color from their phone number hash.
+ *
+ * Uses the new class-based expo-contacts API (SDK 57+).
  */
 export async function importPhoneContacts(): Promise<
   Array<{
@@ -15,16 +17,15 @@ export async function importPhoneContacts(): Promise<
     avatarColor: string;
   }>
 > {
-  const { status } = await Contacts.requestPermissionsAsync();
+  const { status } = await requestPermissionsAsync();
   if (status !== 'granted') {
     return [];
   }
 
-  const { data } = await Contacts.getContactsAsync({
-    fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Name],
-    pageSize: 1000,
-    pageOffset: 0,
-  });
+  const details = await Contact.getAllDetails(
+    [ContactField.FULL_NAME, ContactField.PHONES],
+    { limit: 1000 },
+  );
 
   const result: Array<{
     phone: string;
@@ -34,20 +35,21 @@ export async function importPhoneContacts(): Promise<
 
   const seenPhones = new Set<string>();
 
-  for (const contact of data) {
-    if (!contact.name || !contact.phoneNumbers || contact.phoneNumbers.length === 0) {
+  for (const contact of details) {
+    const name = contact.fullName;
+    if (!name || !contact.phones || contact.phones.length === 0) {
       continue;
     }
 
-    for (const phoneNumber of contact.phoneNumbers) {
-      if (!phoneNumber.number) continue;
-      const normalized = normalizePhone(phoneNumber.number);
+    for (const phone of contact.phones) {
+      if (!phone.number) continue;
+      const normalized = normalizePhone(phone.number);
       if (seenPhones.has(normalized)) continue;
       seenPhones.add(normalized);
 
       result.push({
         phone: normalized,
-        name: contact.name,
+        name,
         avatarColor: colorFromPhone(normalized),
       });
     }
