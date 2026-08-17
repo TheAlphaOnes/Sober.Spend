@@ -124,6 +124,7 @@ export interface Group {
   template: string;
   createdAt: string;
   sortOrder: number;
+  isActive: boolean;
 }
 
 export interface GroupMember {

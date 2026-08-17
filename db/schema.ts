@@ -108,6 +108,7 @@ export const splitGroups = sqliteTable('split_groups', {
   template: text('template').notNull().default('custom'),
   created_at: text('created_at').notNull(),
   sort_order: integer('sort_order').notNull().default(0),
+  is_active: integer('is_active').notNull().default(1),
 });
 
 /**
@@ -248,7 +249,8 @@ const CREATE_STATEMENTS = [
     icon TEXT NOT NULL DEFAULT 'users',
     template TEXT NOT NULL DEFAULT 'custom',
     created_at TEXT NOT NULL,
-    sort_order INTEGER NOT NULL DEFAULT 0
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_active INTEGER NOT NULL DEFAULT 1
   )`,
   `CREATE TABLE IF NOT EXISTS group_members (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -320,6 +322,21 @@ try {
   }
 } catch (err) {
   console.error('[db] Failed to migrate expenses table:', err);
+}
+
+// Migrate split_groups: add is_active column if missing
+try {
+  const groupColumns = sqlite.getAllSync<{ name: string }>(
+    `PRAGMA table_info(split_groups)`,
+  );
+  const groupColNames = new Set(groupColumns.map((c) => c.name));
+  if (!groupColNames.has('is_active')) {
+    sqlite.execSync(
+      `ALTER TABLE split_groups ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1`,
+    );
+  }
+} catch (err) {
+  console.error('[db] Failed to migrate split_groups table:', err);
 }
 
 // ---------------------------------------------------------------------------

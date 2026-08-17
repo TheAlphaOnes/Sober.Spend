@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type ViewStyle, type StyleProp } from 'react-native';
 
 import { Borders, Colors, NeoShadows, Radii, Spacing } from '@/constants/theme';
 import { HatchTexture } from './hatch-texture';
@@ -12,7 +12,7 @@ export interface NeoCardProps {
   offset?: keyof typeof NeoShadows | false;
   /** Show diagonal hatch texture overlay (only on dark surface cards). */
   textured?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 /**
@@ -41,6 +41,7 @@ export function NeoCard({
   // Only show texture on dark surface cards — colored cards are
   // already visually rich and don't need the overlay.
   const showTexture = textured && color === Colors.surface;
+  const radius = StyleSheet.flatten(style)?.borderRadius ?? Radii.md;
 
   return (
     <View style={[styles.wrapper, style]}>
@@ -50,7 +51,7 @@ export function NeoCard({
             styles.solidShadow,
             {
               backgroundColor: sColor,
-              borderRadius: style?.borderRadius ?? Radii.md,
+              borderRadius: radius,
               top: sOffset,
               left: sOffset,
               right: -sOffset,
@@ -65,7 +66,7 @@ export function NeoCard({
           {
             backgroundColor: color,
             borderColor: border,
-            borderRadius: style?.borderRadius ?? Radii.md,
+            borderRadius: radius,
           },
         ]}>
         {showTexture && <HatchTexture />}

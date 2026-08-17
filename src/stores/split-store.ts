@@ -55,6 +55,7 @@ function rowToGroup(row: typeof groupsTable.$inferSelect): Group {
     template: row.template,
     createdAt: row.created_at,
     sortOrder: row.sort_order,
+    isActive: row.is_active === 1,
   };
 }
 
@@ -185,6 +186,7 @@ interface SplitState {
     template: string;
   }) => number;
   deleteGroup: (groupId: number) => void;
+  setGroupActive: (groupId: number, active: boolean) => void;
   addMember: (groupId: number, contactId: number) => void;
   removeMember: (groupId: number, contactId: number) => void;
   getGroupMembers: (groupId: number) => Contact[];
@@ -344,6 +346,18 @@ export const useSplitStore = create<SplitState>((set, get) => ({
       groups: loadGroupsFromDB(),
       splitExpenses: loadSplitExpensesFromDB(),
     });
+  },
+
+  setGroupActive: (groupId, active) => {
+    try {
+      db.update(groupsTable)
+        .set({ is_active: active ? 1 : 0 })
+        .where(eq(groupsTable.id, groupId))
+        .run();
+    } catch (err) {
+      console.error('[split-store] setGroupActive failed:', err);
+    }
+    set({ groups: loadGroupsFromDB() });
   },
 
   addMember: (groupId, contactId) => {

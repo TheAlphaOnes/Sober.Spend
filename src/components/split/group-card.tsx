@@ -27,13 +27,21 @@ export function GroupCard({ group, memberCount, balance, onPress }: GroupCardPro
 
   return (
     <Pressable onPress={onPress}>
-      <NeoCard color={Colors.surface} offset="sm" style={styles.card}>
+      <NeoCard
+        color={Colors.surface}
+        offset="sm"
+        style={[styles.card, !group.isActive && styles.cardInactive]}>
         <View style={styles.header}>
-          <View style={[styles.iconBox, { backgroundColor: group.color }]}>
+          <View style={[styles.iconBox, { backgroundColor: group.color }, !group.isActive && styles.iconBoxInactive]}>
             <Icon size={18} color={Colors.black} strokeWidth={2.5} />
           </View>
           <View style={styles.info}>
-            <Text style={styles.name} numberOfLines={1}>{group.name}</Text>
+            <View style={styles.nameRow}>
+              <Text style={[styles.name, !group.isActive && styles.textInactive]} numberOfLines={1}>
+                {group.name}
+              </Text>
+              {!group.isActive && <Text style={styles.inactiveBadge}>CLOSED</Text>}
+            </View>
             <Text style={styles.members}>{memberCount} members</Text>
           </View>
           <View style={styles.balanceBox}>
@@ -44,6 +52,7 @@ export function GroupCard({ group, memberCount, balance, onPress }: GroupCardPro
                 style={[
                   styles.balance,
                   { color: isOwed ? Colors.safe : Colors.exceeded },
+                  !group.isActive && styles.textInactive,
                 ]}>
                 {isOwed ? '+' : '-'}{formatCurrency(Math.abs(balance))}
               </Text>
@@ -59,6 +68,9 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: Spacing.sm,
   },
+  cardInactive: {
+    opacity: 0.55,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -73,13 +85,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconBoxInactive: {
+    opacity: 0.5,
+  },
   info: {
     flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   name: {
     fontFamily: Fonts.display,
     fontSize: FontSizes.md,
     color: Colors.white,
+  },
+  textInactive: {
+    color: Colors.textMuted,
+  },
+  inactiveBadge: {
+    fontFamily: Fonts.display,
+    fontSize: 9,
+    color: Colors.exceeded,
+    borderWidth: 1,
+    borderColor: Colors.exceeded,
+    borderRadius: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    letterSpacing: 1,
   },
   members: {
     fontFamily: Fonts.display,

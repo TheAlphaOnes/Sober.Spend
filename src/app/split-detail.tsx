@@ -33,6 +33,7 @@ export default function SplitDetailScreen() {
     getContactBalance,
     getSimplifiedGroupSettlements,
     settleBalance,
+    setGroupActive,
   } = useSplitStore();
 
   const [showSetup, setShowSetup] = useState(false);
@@ -77,7 +78,17 @@ export default function SplitDetailScreen() {
       <View style={styles.header}>
         <NeoBackButton />
         <Text style={styles.title}>{title}</Text>
-        <View style={{ width: 38 }} />
+        {type === 'group' && group ? (
+          <Pressable
+            onPress={() => setGroupActive(group.id, !group.isActive)}
+            style={styles.closeBtn}>
+            <Text style={[styles.closeBtnText, group.isActive ? styles.closeBtnActive : styles.closeBtnReopen]}>
+              {group.isActive ? 'CLOSE' : 'REOPEN'}
+            </Text>
+          </Pressable>
+        ) : (
+          <View style={{ width: 38 }} />
+        )}
       </View>
 
       <ScrollView
@@ -122,12 +133,22 @@ export default function SplitDetailScreen() {
 
         {/* Actions */}
         <View style={styles.actions}>
-          <NeoButton
-            title="Add Expense"
-            variant="primary"
-            size="md"
-            onPress={() => setShowSetup(true)}
-          />
+          {type === 'group' && group?.isActive !== false && (
+            <NeoButton
+              title="Add Expense"
+              variant="primary"
+              size="md"
+              onPress={() => setShowSetup(true)}
+            />
+          )}
+          {type === 'contact' && (
+            <NeoButton
+              title="Add Expense"
+              variant="primary"
+              size="md"
+              onPress={() => setShowSetup(true)}
+            />
+          )}
           {Math.abs(netBalance) > 0.01 && (
             <NeoButton
               title="Settle Up"
@@ -179,12 +200,14 @@ export default function SplitDetailScreen() {
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* FAB */}
-      <Pressable
-        style={[styles.fab, { bottom: insets.bottom + Spacing.lg }]}
-        onPress={() => setShowSetup(true)}>
-        <Plus size={24} color={Colors.black} strokeWidth={3} />
-      </Pressable>
+      {/* FAB — hidden for closed groups */}
+      {!(type === 'group' && group?.isActive === false) && (
+        <Pressable
+          style={[styles.fab, { bottom: insets.bottom + Spacing.lg }]}
+          onPress={() => setShowSetup(true)}>
+          <Plus size={24} color={Colors.black} strokeWidth={3} />
+        </Pressable>
+      )}
 
       {/* Sheets */}
       <SplitSetupSheet visible={showSetup} onClose={() => setShowSetup(false)} />
@@ -221,6 +244,24 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.display,
     fontSize: FontSizes.xl,
     color: Colors.white,
+  },
+  closeBtn: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 6,
+  },
+  closeBtnText: {
+    fontFamily: Fonts.display,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  closeBtnActive: {
+    color: Colors.exceeded,
+  },
+  closeBtnReopen: {
+    color: Colors.accent,
   },
   scroll: {
     flex: 1,
