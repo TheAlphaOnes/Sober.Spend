@@ -1,56 +1,187 @@
-# Welcome to your Expo app 👋
+# Sober.Spend
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**A Financially Responsible UPI Layer.**
 
-## Get started
+Scan a UPI QR code, see exactly what it does to your budget before you pay, and build savings without thinking about it. Offline-first, neo-brutalist, built for Gen Z.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## What it does
 
-2. Start the app
+Sober.Spend sits between you and your UPI payment. Instead of just paying, you scan the QR, the app shows you a before/after budget impact, and then you decide whether to send it.
 
-   ```bash
-   npx expo start
-   ```
+- **Scan to decide** — Scan a UPI QR code, see the projected budget impact, then pay
+- **Monthly budget with category limits** — Set a total monthly budget and per-category limits
+- **Savings pool** — A persistent wallet that carries over month to month. Leftover budget at month-end automatically rolls into savings
+- **Monthly savings target** — Set a monthly savings goal. Deposits count as "used" from your budget so the math stays honest
+- **Wishlist** — Save things you want to buy. Fund them from your savings pool over time, or buy directly (recorded as an expense)
+- **Flexible categories** — Create custom categories with colors, icons, and keyword matching for auto-categorization
+- **Full history** — Filter by category, sort by newest/oldest/highest/lowest
+- **Offline-first** — Everything works without an account. Login is optional, only needed for multi-device sync
 
-In the output, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Tech stack
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+| Layer | Technology |
+|-------|-----------|
+| Framework | Expo Router v57 (React Native 0.86, React 19) |
+| Language | TypeScript |
+| Local DB | expo-sqlite + Drizzle ORM |
+| State | Zustand |
+| Backend | Supabase (auth + Postgres for sync) |
+| UI | React Native Reanimated, custom neo-brutalist design system |
+| Icons | lucide-react-native |
+| Fonts | JockeyOne-Regular (display), SignPainterHouseScript (accent) |
 
-## Get a fresh project
+---
 
-When you're ready, run:
+## Architecture
 
-```bash
-npm run reset-project
+```
+Sober.Spend/
+├── db/
+│   └── schema.ts              # SQLite tables + Drizzle setup (expenses, settings, categories, wishlist)
+├── src/
+│   ├── app/                   # Expo Router screens
+│   │   ├── _layout.tsx        # Root layout, fonts, auth init
+│   │   ├── index.tsx          # Dashboard — budget summary, risk banner, categories, recent
+│   │   ├── scan.tsx           # UPI QR scanner + manual entry
+│   │   ├── decision.tsx       # Before/after budget impact, pay or cancel
+│   │   ├── history.tsx        # Full transaction history with filter + sort
+│   │   ├── wishlist.tsx       # Savings pool, wishlist items, buy/fund
+│   │   ├── settings.tsx       # Budget, savings, category limits, reset
+│   │   ├── categories.tsx     # Create/edit/delete categories
+│   │   ├── profile.tsx        # Auth (login/signup), stats, sync
+│   │   └── auth-callback.tsx  # Supabase email confirm redirect
+│   ├── stores/                # Zustand stores
+│   │   ├── budget-store.ts    # Budget, savings, categories, monthly rollover
+│   │   ├── expense-store.ts   # Expenses, pending transaction, monthly reset
+│   │   ├── wishlist-store.ts  # Wishlist buckets, items, buy/fund
+│   │   └── auth-store.ts      # Supabase session
+│   ├── utils/
+│   │   ├── budget-engine.ts   # Spent calc, usage %, daily average
+│   │   ├── decision-engine.ts # Transaction risk evaluation
+│   │   ├── upi-parser.ts      # UPI QR string → pending transaction
+│   │   ├── categorize.ts      # Keyword-based category matching
+│   │   ├── format.ts          # Currency, date, percent formatters
+│   │   ├── supabase.ts        # Supabase client
+│   │   └── sync.ts            # Local ↔ remote merge
+│   ├── components/
+│   │   ├── dashboard/         # BudgetSummary, CategoryCard, RiskBanner, TransactionItem
+│   │   └── ui/                # NeoCard, NeoButton, NeoBackButton, ProgressBar, HatchTexture
+│   ├── constants/
+│   │   ├── theme.ts           # Colors, spacing, radii, borders, shadows, animation, fonts
+│   │   └── categories.ts      # Default categories
+│   └── types/
+│       └── index.ts           # Shared TypeScript types
+├── supabase/
+│   └── migrations/            # Postgres schema with RLS
+└── assets/
+    ├── fonts/                 # JockeyOne-Regular, SignPainterHouseScript
+    └── images/                # App icons, splash
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-### Other setup steps
+## The money model
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Two separate concepts that work together:
 
-## Learn more
+### Savings pool (persistent wallet)
+- `savingsBalance` — carries over month to month, never resets
+- Deposit into it from your budget (counts as "used" from monthly budget)
+- Withdraw from it back to your budget
+- Use it to buy wishlist items
+- Monthly rollover adds leftover budget into the pool
 
-To learn more about developing your project with Expo, look at the following resources:
+### Monthly savings target
+- `monthlySavingsDeposited` — tracks deposits made this month toward your target
+- Resets every month (new month = new counter)
+- Progress bars show monthly progress, not total pool balance
+- The monthly reset clears this counter but leaves the pool untouched
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Budget calculation
+```
+totalUsed = monthlyExpenses + monthlySavingsDeposited
+remaining = monthlyBudget - totalUsed
+```
 
-## Join the community
+Savings deposits count as "used" because the money left your spending budget — it went into savings. This keeps the budget math honest: you can't spend savings money on expenses without it showing up.
 
-Join our community of developers creating universal apps.
+---
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Getting started
+
+### Prerequisites
+
+- Node.js 18+
+- pnpm (recommended) or npm
+- Expo CLI (comes with Expo SDK 57)
+- iOS Simulator or Android Emulator (or Expo Go)
+
+### Install
+
+```bash
+pnpm install
+```
+
+### Environment
+
+Copy the example env file and fill in your Supabase credentials:
+
+```bash
+cp .env.example .env.local
+```
+
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_KEY=sb_publishable_your_anon_key_here
+```
+
+The app works fully offline without Supabase configured — you just won't get auth or sync.
+
+### Run
+
+```bash
+pnpm start
+```
+
+Then press `i` for iOS simulator or `a` for Android emulator.
+
+---
+
+## Design system
+
+Neo-brutalist with a dark, minimal aesthetic:
+
+- **Thick solid borders** — 1.5px to 3px, opaque black on dark surfaces
+- **Hard offset shadows** — solid accent-colored blocks, no blur
+- **Oversized typography** — JockeyOne-Regular for everything, big numbers for impact
+- **Category colors** — vibrant fills (mint, yellow, purple, orange, pink, blue) with black text
+- **Hatch textures** — diagonal line patterns for depth on cards
+- **Broken states** — overspent budget bars overflow and spill, percentages tilt
+- **Staggered animations** — entrance animations cascade at 35-60ms per item, completing at different rates so the app feels alive
+
+---
+
+## Supabase setup (optional, for sync)
+
+The migration in `supabase/migrations/0001_sober_spend_schema.sql` creates:
+
+- `expenses`, `categories`, `settings` tables with `user_id` foreign keys
+- Row Level Security policies (users can only access their own data)
+- Indexes on `user_id` and `date` for query performance
+
+To apply:
+
+```bash
+supabase link --project-ref your-project-ref
+supabase db push
+```
+
+---
+
+## License
+
+Private project.
