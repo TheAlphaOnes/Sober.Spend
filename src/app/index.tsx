@@ -12,7 +12,7 @@ import { currentMonthExpenses, spentByCategory, totalSpent } from '@/utils/budge
 import { formatCurrency } from '@/utils/format';
 import { useFocusEffect } from 'expo-router';
 import { useRouter } from 'expo-router';
-import { ChevronRight, ScanLine, Settings, Sparkles, User, Wallet } from 'lucide-react-native';
+import { ChevronRight, ScanLine, Settings, Sparkles, User, Users, Wallet } from 'lucide-react-native';
 import { useCallback, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -131,6 +131,11 @@ export default function DashboardScreen() {
             <Text style={styles.headerSub}>Spend Like Sober</Text>
           </View>
           <View style={styles.headerActions}>
+            <Pressable
+              onPress={() => router.push('/split')}
+              style={styles.iconBtn}>
+              <Users size={20} color={Colors.white} strokeWidth={2.5} />
+            </Pressable>
             <Pressable
               onPress={() => router.push('/profile')}
               style={styles.iconBtn}>

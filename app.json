@@ -33,7 +33,13 @@
           "imageWidth": 76
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Sober.Spend needs access to your contacts to split expenses with friends."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

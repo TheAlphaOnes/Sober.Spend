@@ -34,8 +34,8 @@ yarn-error.*
 .env*.local
 .env
 
-# old reference app (nested git repo)
-.info/SoberSpend.app
+# old reference app (nested git repo) + local-only context/docs
+.info/
 
 # Supabase CLI local state
 supabase/.temp/

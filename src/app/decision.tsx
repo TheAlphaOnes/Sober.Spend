@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NeoBackButton } from '@/components/ui/neo-back-button';
 import { NeoButton } from '@/components/ui/neo-button';
 import { NeoCard } from '@/components/ui/neo-card';
+import { SplitSetupSheet } from '@/components/split/split-setup-sheet';
 import { Animation, Borders, Colors, Fonts, FontSizes, Radii, Spacing } from '@/constants/theme';
 import { useBudgetStore } from '@/stores/budget-store';
 import { useExpenseStore } from '@/stores/expense-store';
@@ -25,6 +26,7 @@ import type { CategoryId } from '@/types';
 import { currentMonthExpenses } from '@/utils/budget-engine';
 import { evaluateTransaction } from '@/utils/decision-engine';
 import { formatCurrency } from '@/utils/format';
+import { Users } from 'lucide-react-native';
 
 const iconMap: Record<string, typeof Utensils> = {
   utensils: Utensils,
@@ -43,6 +45,7 @@ export default function DecisionScreen() {
   const confirmPending = useExpenseStore((s) => s.confirmPendingTransaction);
   const setPending = useExpenseStore((s) => s.setPendingTransaction);
   const expenses = useExpenseStore((s) => s.expenses);
+  const [showSplitSheet, setShowSplitSheet] = useState(false);
   const { monthlyBudget, monthlySavingsDeposited, categories } = useBudgetStore();
 
   const [overrideCategoryName, setOverrideCategoryName] = useState<CategoryId | null>(null);
@@ -306,6 +309,14 @@ export default function DecisionScreen() {
 
       <View style={[styles.actions, { paddingBottom: insets.bottom + Spacing.md }]}>
         <NeoButton
+          title="Split It"
+          variant="outline"
+          size="lg"
+          onPress={() => setShowSplitSheet(true)}
+          disabled={isUnknown}
+          icon={<Users size={18} color={Colors.white} strokeWidth={2.5} />}
+        />
+        <NeoButton
           title={
             isUnknown
               ? 'Pick a category first'
@@ -332,6 +343,17 @@ export default function DecisionScreen() {
           }
         />
       </View>
+
+      <SplitSetupSheet
+        visible={showSplitSheet}
+        onClose={() => setShowSplitSheet(false)}
+        pendingTransaction={pendingTransaction}
+        onConfirm={() => {
+          // Clear the pending transaction after split is created
+          setPending(null);
+          router.dismissAll();
+        }}
+      />
     </View>
   );
 }
@@ -560,6 +582,8 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   actions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
     borderTopWidth: 1,

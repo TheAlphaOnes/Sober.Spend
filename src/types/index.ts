@@ -93,3 +93,111 @@ export interface WishlistItem {
   status: WishlistItemStatus;
   dateCreated: string;
 }
+
+// ---------------------------------------------------------------------------
+// Split Feature
+// ---------------------------------------------------------------------------
+
+/** Reserved contact id for the user themself. */
+export const SELF_CONTACT_ID = 0;
+
+export type SplitType = 'equal' | 'exact' | 'percent' | 'dutch';
+export type SettlementMethod = 'upi' | 'cash' | 'other';
+
+export interface Contact {
+  id: number;
+  phone: string;
+  name: string;
+  vpaSuffix?: string | null;
+  vpa?: string | null;
+  avatarColor: string;
+  hasApp: boolean;
+  isSelf: boolean;
+  createdAt: string;
+}
+
+export interface Group {
+  id: number;
+  name: string;
+  color: string;
+  icon: string;
+  template: string;
+  createdAt: string;
+  sortOrder: number;
+}
+
+export interface GroupMember {
+  id: number;
+  groupId: number;
+  contactId: number;
+  joinedAt: string;
+}
+
+export interface SplitExpense {
+  id: number;
+  groupId: number | null;
+  totalAmount: number;
+  merchant: string;
+  category: string;
+  note?: string | null;
+  paidBy: number;
+  date: string;
+  splitType: SplitType;
+  settled: boolean;
+  createdAt: string;
+}
+
+export interface SplitShare {
+  id: number;
+  splitExpenseId: number;
+  contactId: number;
+  shareAmount: number;
+  orderAmount: number | null;
+  settled: boolean;
+  settledDate?: string | null;
+}
+
+export interface Settlement {
+  id: number;
+  fromContactId: number;
+  toContactId: number;
+  amount: number;
+  method: SettlementMethod;
+  date: string;
+  note?: string | null;
+  createdAt: string;
+}
+
+/** A shared item in a Dutch split (e.g. garlic bread that 3 of 4 people ate). */
+export interface SharedItem {
+  amount: number;
+  consumerIds: number[];
+}
+
+/** Input for creating a split expense. */
+export interface CreateSplitExpenseInput {
+  totalAmount: number;
+  merchant: string;
+  category: string;
+  note?: string;
+  paidByContactId: number;
+  groupId?: number | null;
+  splitType: SplitType;
+  shares: { contactId: number; amount: number; orderAmount?: number }[];
+}
+
+/** Result of simplifying debts within a group. */
+export interface SimplifiedTransaction {
+  from: number;
+  to: number;
+  amount: number;
+}
+
+/** Premade group template definition. */
+export interface GroupTemplate {
+  key: string;
+  label: string;
+  icon: string;
+  color: string;
+  hint: string;
+}
