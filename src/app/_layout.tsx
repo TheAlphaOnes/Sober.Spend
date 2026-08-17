@@ -39,6 +39,10 @@ export default function RootLayout() {
           headerShown: false,
           contentStyle: { backgroundColor: Colors.bg },
           animation: 'slide_from_right',
+          // Full-screen immersive mode — hide system navigation bar
+          navigationBarColor: Colors.bg,
+          statusBarTranslucent: true,
+          navigationBarTranslucent: true,
         }}>
         <Stack.Screen name="index" />
         <Stack.Screen
