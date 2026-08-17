@@ -24,17 +24,36 @@ export function ExactSplitView({ totalAmount, contacts, shares, onChange }: Exac
    * equally among everyone else so the total always matches.
    */
   const handleSliderChange = (contactId: number, newValue: number) => {
+    redistribute(contactId, newValue);
+  };
+
+  /**
+   * When one person's amount is typed manually, redistribute the remaining
+   * amount equally among everyone else so the total always matches.
+   * The typed field keeps the raw input; only others are adjusted.
+   */
+  const handleTextChange = (contactId: number, rawValue: string) => {
+    // Always update the typed field so the user sees what they type
+    onChange(contactId, rawValue);
+
+    const parsed = parseFloat(rawValue) || 0;
+    redistributeOthers(contactId, parsed);
+  };
+
+  function redistribute(contactId: number, newValue: number) {
     const rounded = Math.round(newValue * 100) / 100;
-    const remaining = Math.max(0, totalAmount - rounded);
+    onChange(contactId, String(rounded));
+    redistributeOthers(contactId, rounded);
+  }
+
+  function redistributeOthers(contactId: number, primaryValue: number) {
+    const remaining = Math.max(0, totalAmount - primaryValue);
     const others = contacts.filter((c) => c.id !== contactId);
     const perPerson = others.length > 0 ? remaining / others.length : 0;
     const perPersonRounded = Math.round(perPerson * 100) / 100;
 
-    // Set the dragged person's value
-    onChange(contactId, String(rounded));
-
     // Distribute the remainder — fix last person to absorb rounding errors
-    let allocated = rounded;
+    let allocated = primaryValue;
     others.forEach((c, i) => {
       if (i === others.length - 1) {
         // Last person gets whatever's left to ensure exact total
@@ -45,7 +64,7 @@ export function ExactSplitView({ totalAmount, contacts, shares, onChange }: Exac
         allocated += perPersonRounded;
       }
     });
-  };
+  }
 
   return (
     <View style={styles.container}>
@@ -57,7 +76,7 @@ export function ExactSplitView({ totalAmount, contacts, shares, onChange }: Exac
           maxValue={totalAmount}
           shareValue={shares[contact.id] || ''}
           onSliderChange={(v) => handleSliderChange(contact.id, v)}
-          onTextChange={(val) => onChange(contact.id, val)}
+          onTextChange={(val) => handleTextChange(contact.id, val)}
         />
       ))}
       <View style={styles.totalRow}>
