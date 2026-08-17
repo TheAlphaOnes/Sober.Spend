@@ -2,7 +2,7 @@ import { Borders, Colors, Fonts, FontSizes, Radii, Spacing } from '@/constants/t
 import { exactSharesDifference } from '@/utils/split-engine';
 import { formatCurrency, sanitizeNumericInput } from '@/utils/format';
 import type { Contact } from '@/types';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Slider from '@react-native-community/slider';
 
@@ -19,6 +19,34 @@ export function ExactSplitView({ totalAmount, contacts, shares, onChange }: Exac
   const sum = values.reduce((s, v) => s + v, 0);
   const isValid = Math.abs(diff) < 0.01;
 
+  /**
+   * When one person's slider moves, redistribute the remaining amount
+   * equally among everyone else so the total always matches.
+   */
+  const handleSliderChange = (contactId: number, newValue: number) => {
+    const rounded = Math.round(newValue * 100) / 100;
+    const remaining = Math.max(0, totalAmount - rounded);
+    const others = contacts.filter((c) => c.id !== contactId);
+    const perPerson = others.length > 0 ? remaining / others.length : 0;
+    const perPersonRounded = Math.round(perPerson * 100) / 100;
+
+    // Set the dragged person's value
+    onChange(contactId, String(rounded));
+
+    // Distribute the remainder — fix last person to absorb rounding errors
+    let allocated = rounded;
+    others.forEach((c, i) => {
+      if (i === others.length - 1) {
+        // Last person gets whatever's left to ensure exact total
+        const lastShare = Math.round((totalAmount - allocated) * 100) / 100;
+        onChange(c.id, String(Math.max(0, lastShare)));
+      } else {
+        onChange(c.id, String(perPersonRounded));
+        allocated += perPersonRounded;
+      }
+    });
+  };
+
   return (
     <View style={styles.container}>
       {contacts.map((contact, index) => (
@@ -28,7 +56,8 @@ export function ExactSplitView({ totalAmount, contacts, shares, onChange }: Exac
           value={values[index]}
           maxValue={totalAmount}
           shareValue={shares[contact.id] || ''}
-          onChange={(val) => onChange(contact.id, val)}
+          onSliderChange={(v) => handleSliderChange(contact.id, v)}
+          onTextChange={(val) => onChange(contact.id, val)}
         />
       ))}
       <View style={styles.totalRow}>
@@ -49,29 +78,19 @@ interface ExactRowProps {
   value: number;
   maxValue: number;
   shareValue: string;
-  onChange: (val: string) => void;
+  onSliderChange: (v: number) => void;
+  onTextChange: (val: string) => void;
 }
 
-function ExactRow({ contact, value, maxValue, shareValue, onChange }: ExactRowProps) {
+function ExactRow({ contact, value, maxValue, shareValue, onSliderChange, onTextChange }: ExactRowProps) {
   const [editing, setEditing] = useState(false);
   const inputRef = useRef<TextInput>(null);
-
-  // Close edit mode when value changes externally (e.g. slider reset)
-  useEffect(() => {
-    if (!editing && shareValue === '') {
-      // no-op, just keep in sync
-    }
-  }, [shareValue, editing]);
-
-  const handleSliderChange = (v: number) => {
-    onChange(String(Math.round(v * 100) / 100));
-  };
 
   const handleTextSubmit = () => {
     setEditing(false);
   };
 
-  const sliderValue = Math.min(value, maxValue);
+  const sliderValue = Math.min(Math.max(value, 0), maxValue);
 
   return (
     <View style={styles.row}>
@@ -91,7 +110,7 @@ function ExactRow({ contact, value, maxValue, shareValue, onChange }: ExactRowPr
               ref={inputRef}
               style={styles.amountInput}
               value={shareValue}
-              onChangeText={(v) => onChange(sanitizeNumericInput(v))}
+              onChangeText={(v) => onTextChange(sanitizeNumericInput(v))}
               onSubmitEditing={handleTextSubmit}
               onBlur={handleTextSubmit}
               keyboardType="numeric"
@@ -111,7 +130,7 @@ function ExactRow({ contact, value, maxValue, shareValue, onChange }: ExactRowPr
         minimumValue={0}
         maximumValue={maxValue > 0 ? maxValue : 1}
         value={sliderValue}
-        onValueChange={handleSliderChange}
+        onValueChange={onSliderChange}
         minimumTrackTintColor={Colors.accent}
         maximumTrackTintColor={Colors.border}
         thumbTintColor={Colors.white}
@@ -182,9 +201,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs + 2,
   },
   slider: {
-    width: '100%',
+    flex: 1,
     height: 32,
-    marginLeft: 36,
+    marginHorizontal: -4,
   },
   totalRow: {
     flexDirection: 'row',
