@@ -48,7 +48,11 @@ export default function SplitScreen() {
       <View style={styles.header}>
         <NeoBackButton />
         <Text style={styles.title}>Split</Text>
-        <Pressable onPress={() => setShowSetup(true)} style={styles.addBtn}>
+        <Pressable
+          onPress={() =>
+            preferredMode === 'groups' ? setShowGroupSetup(true) : setShowSetup(true)
+          }
+          style={styles.addBtn}>
           <Plus size={20} color={Colors.white} strokeWidth={2.5} />
         </Pressable>
       </View>
@@ -137,7 +141,9 @@ export default function SplitScreen() {
       {/* FAB */}
       <Pressable
         style={[styles.fab, { bottom: insets.bottom + Spacing.lg }]}
-        onPress={() => setShowSetup(true)}>
+        onPress={() =>
+          preferredMode === 'groups' ? setShowGroupSetup(true) : setShowSetup(true)
+        }>
         <Plus size={24} color={Colors.black} strokeWidth={3} />
       </Pressable>
 
