@@ -1,6 +1,6 @@
 import { NeoButton } from '@/components/ui/neo-button';
 import { Borders, Colors, Fonts, FontSizes, Radii, Spacing } from '@/constants/theme';
-import { generateSettlementLink } from '@/utils/split-engine';
+import { generateCollectLink, generateSettlementLink } from '@/utils/split-engine';
 import { formatCurrency } from '@/utils/format';
 import type { Contact } from '@/types';
 import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -26,7 +26,9 @@ export function SettleUpSheet({ visible, onClose, contact, title, balance, onSet
 
   const handleUpi = () => {
     if (contact) {
-      const link = generateSettlementLink(contact, amount, 'Sober.Spend settlement');
+      const link = isOwed
+        ? generateCollectLink(contact, amount, 'Sober.Spend settlement')
+        : generateSettlementLink(contact, amount, 'Sober.Spend settlement');
       Linking.openURL(link).catch(() => {
         setShowVpaPicker(true);
       });

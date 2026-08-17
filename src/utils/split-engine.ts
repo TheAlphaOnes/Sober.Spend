@@ -245,7 +245,19 @@ export function simplifyDebts(
 
 /**
  * Generate a UPI deep link for settlement.
- * Uses saved VPA if available, otherwise generates from phone number + suffix.
+ *
+ * For paying someone (you owe them): uses upi://pay with their VPA.
+ * For requesting money (they owe you): uses upi://collect — though most
+ * UPI apps don't support collect via deep link, so we fall back to
+ * opening the user's UPI app to send a request manually.
+ *
+ * VPA resolution order:
+ * 1. Saved VPA (contact.vpa)
+ * 2. Phone number + saved suffix (contact.vpaSuffix)
+ * 3. Phone number + @paytm (default)
+ *
+ * The phone number is stripped to 10 digits for VPA construction
+ * (Indian numbers stored as +91XXXXXXXXXX).
  */
 export function generateSettlementLink(
   contact: Contact,
@@ -253,9 +265,15 @@ export function generateSettlementLink(
   note?: string,
 ): string {
   const phoneDigits = contact.phone.replace(/\D/g, '');
+  // Strip leading 91 if present (E.164 format) to get 10-digit number
+  const tenDigit = phoneDigits.length === 12 && phoneDigits.startsWith('91')
+    ? phoneDigits.slice(2)
+    : phoneDigits;
+
   const vpa =
     contact.vpa ||
-    `${phoneDigits}${contact.vpaSuffix || '@paytm'}`;
+    `${tenDigit}${contact.vpaSuffix || '@paytm'}`;
+
   const params = new URLSearchParams({
     pa: vpa,
     pn: contact.name,
@@ -263,6 +281,35 @@ export function generateSettlementLink(
   });
   if (note) params.set('tn', note);
   return `upi://pay?${params.toString()}`;
+}
+
+/**
+ * Generate a UPI collect request link (for when someone owes the user).
+ * Note: UPI collect is not universally supported via deep links.
+ * Most apps will open the UPI app's request flow.
+ */
+export function generateCollectLink(
+  contact: Contact,
+  amount: number,
+  note?: string,
+): string {
+  const phoneDigits = contact.phone.replace(/\D/g, '');
+  const tenDigit = phoneDigits.length === 12 && phoneDigits.startsWith('91')
+    ? phoneDigits.slice(2)
+    : phoneDigits;
+
+  const vpa =
+    contact.vpa ||
+    `${tenDigit}${contact.vpaSuffix || '@paytm'}`;
+
+  const params = new URLSearchParams({
+    pa: vpa,
+    pn: contact.name,
+    am: amount.toFixed(2),
+    cu: 'INR',
+  });
+  if (note) params.set('tn', note);
+  return `upi://collect?${params.toString()}`;
 }
 
 // ---------------------------------------------------------------------------
