@@ -212,18 +212,19 @@ export default function SplitDetailScreen() {
       {/* Sheets */}
       <SplitSetupSheet visible={showSetup} onClose={() => setShowSetup(false)} />
 
-      {contact && (
-        <SettleUpSheet
-          visible={showSettleUp}
-          onClose={() => setShowSettleUp(false)}
-          contact={contact}
-          balance={netBalance}
-          onSettled={(method) => {
+      <SettleUpSheet
+        visible={showSettleUp}
+        onClose={() => setShowSettleUp(false)}
+        contact={contact ?? null}
+        title={type === 'group' ? group?.name : undefined}
+        balance={netBalance}
+        onSettled={(method) => {
+          if (type === 'contact' && contact) {
             settleBalance(contact.id, Math.abs(netBalance), method);
-            loadAll();
-          }}
-        />
-      )}
+          }
+          loadAll();
+        }}
+      />
     </View>
   );
 }

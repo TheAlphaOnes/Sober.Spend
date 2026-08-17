@@ -11,24 +11,30 @@ interface SettleUpSheetProps {
   visible: boolean;
   onClose: () => void;
   contact: Contact | null;
+  title?: string;
   balance: number;
   onSettled: (method: 'upi' | 'cash') => void;
 }
 
-export function SettleUpSheet({ visible, onClose, contact, balance, onSettled }: SettleUpSheetProps) {
+export function SettleUpSheet({ visible, onClose, contact, title, balance, onSettled }: SettleUpSheetProps) {
   const [showVpaPicker, setShowVpaPicker] = useState(false);
-  if (!contact) return null;
 
+  const displayName = title || contact?.name || 'Unknown';
   const isOwed = balance > 0;
   const amount = Math.abs(balance);
   const action = isOwed ? 'Request' : 'Pay';
 
   const handleUpi = () => {
-    if (!contact) return;
-    const link = generateSettlementLink(contact, amount, 'Sober.Spend settlement');
-    Linking.openURL(link).catch(() => {
-      setShowVpaPicker(true);
-    });
+    if (contact) {
+      const link = generateSettlementLink(contact, amount, 'Sober.Spend settlement');
+      Linking.openURL(link).catch(() => {
+        setShowVpaPicker(true);
+      });
+    } else {
+      // Group settle — just mark as settled
+      onSettled('upi');
+      onClose();
+    }
   };
 
   const handleCash = () => {
@@ -54,7 +60,7 @@ export function SettleUpSheet({ visible, onClose, contact, balance, onSettled }:
 
           <View style={styles.balanceBox}>
             <Text style={styles.balanceLabel}>
-              {isOwed ? `${contact.name} owes you` : `You owe ${contact.name}`}
+              {isOwed ? `${displayName} owes you` : `You owe ${displayName}`}
             </Text>
             <Text style={styles.balanceAmount}>{formatCurrency(amount)}</Text>
           </View>
