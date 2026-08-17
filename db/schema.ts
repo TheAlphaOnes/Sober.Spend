@@ -307,9 +307,9 @@ for (const stmt of CREATE_STATEMENTS) {
 // ---------------------------------------------------------------------------
 
 try {
-  const columns = sqlite.execSync(`PRAGMA table_info(expenses)`) as unknown as Array<{
-    name: string;
-  }>;
+  const columns = sqlite.getAllSync<{ name: string }>(
+    `PRAGMA table_info(expenses)`,
+  );
   const columnNames = new Set(columns.map((c) => c.name));
 
   if (!columnNames.has('split_expense_id')) {
