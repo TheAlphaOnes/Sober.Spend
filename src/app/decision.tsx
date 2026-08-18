@@ -12,13 +12,12 @@ import {
 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View, type DimensionValue } from 'react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NeoBackButton } from '@/components/ui/neo-back-button';
 import { NeoButton } from '@/components/ui/neo-button';
 import { NeoCard } from '@/components/ui/neo-card';
-import { SplitSetupSheet } from '@/components/split/split-setup-sheet';
 import { Animation, Borders, Colors, Fonts, FontSizes, Radii, Spacing } from '@/constants/theme';
 import { useBudgetStore } from '@/stores/budget-store';
 import { useExpenseStore } from '@/stores/expense-store';
@@ -26,7 +25,7 @@ import type { CategoryId } from '@/types';
 import { currentMonthExpenses } from '@/utils/budget-engine';
 import { evaluateTransaction } from '@/utils/decision-engine';
 import { formatCurrency } from '@/utils/format';
-import { Users } from 'lucide-react-native';
+import { saveVpaCategory } from '@/utils/upi-parser';
 
 const iconMap: Record<string, typeof Utensils> = {
   utensils: Utensils,
@@ -45,7 +44,6 @@ export default function DecisionScreen() {
   const confirmPending = useExpenseStore((s) => s.confirmPendingTransaction);
   const setPending = useExpenseStore((s) => s.setPendingTransaction);
   const expenses = useExpenseStore((s) => s.expenses);
-  const [showSplitSheet, setShowSplitSheet] = useState(false);
   const { monthlyBudget, monthlySavingsDeposited, categories } = useBudgetStore();
 
   const [overrideCategoryName, setOverrideCategoryName] = useState<CategoryId | null>(null);
@@ -88,6 +86,10 @@ export default function DecisionScreen() {
 
     if (overrideCategoryName) {
       setPending({ ...pendingTransaction, category: overrideCategoryName });
+      // Remember this VPA → category choice for next time
+      if (pendingTransaction.pa) {
+        saveVpaCategory(pendingTransaction.pa, overrideCategoryName);
+      }
     }
 
     await confirmPending();
@@ -137,7 +139,7 @@ export default function DecisionScreen() {
         showsVerticalScrollIndicator={false}>
 
         <Animated.View
-          entering={FadeInUp.duration(Animation.duration.entrance)}
+          entering={FadeIn.duration(200)}
           style={styles.amountSection}>
           <Text style={styles.amount}>{formatCurrency(pendingTransaction.amount)}</Text>
           <Text style={styles.merchant}>{pendingTransaction.merchant}</Text>
@@ -155,7 +157,7 @@ export default function DecisionScreen() {
               return (
                 <Animated.View
                   key={cat.id}
-                  entering={FadeInDown.delay(index * Animation.stagger).duration(Animation.duration.entrance)}>
+                  entering={FadeIn.delay(index * 40).duration(180)}>
                   <Pressable
                     onPress={() => {
                       Haptics.selectionAsync();
@@ -186,7 +188,7 @@ export default function DecisionScreen() {
         </View>
 
         {!isUnknown && (
-          <Animated.View entering={FadeInDown.delay(200).duration(Animation.duration.entrance)}>
+          <Animated.View entering={FadeIn.delay(150).duration(220)}>
             <NeoCard color={Colors.surface} offset="sm" style={styles.impactCard}>
               <View style={styles.impactHeader}>
                 <View style={[styles.categoryDot, { backgroundColor: category.color }]} />
@@ -309,14 +311,6 @@ export default function DecisionScreen() {
 
       <View style={[styles.actions, { paddingBottom: insets.bottom + Spacing.md }]}>
         <NeoButton
-          title="Split It"
-          variant="outline"
-          size="lg"
-          onPress={() => setShowSplitSheet(true)}
-          disabled={isUnknown}
-          icon={<Users size={18} color={Colors.white} strokeWidth={2.5} />}
-        />
-        <NeoButton
           title={
             isUnknown
               ? 'Pick a category first'
@@ -343,17 +337,6 @@ export default function DecisionScreen() {
           }
         />
       </View>
-
-      <SplitSetupSheet
-        visible={showSplitSheet}
-        onClose={() => setShowSplitSheet(false)}
-        pendingTransaction={pendingTransaction}
-        onConfirm={() => {
-          // Clear the pending transaction after split is created
-          setPending(null);
-          router.dismissAll();
-        }}
-      />
     </View>
   );
 }
@@ -582,7 +565,6 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   actions: {
-    flexDirection: 'row',
     gap: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,

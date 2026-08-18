@@ -16,8 +16,8 @@ export const Colors = {
   surfaceLight: '#2A2A2A',
 
   text: '#FFFFFF',
-  textSecondary: '#888888',
-  textMuted: '#666666',
+  textSecondary: '#C0C0C0',
+  textMuted: '#9A9A9A',
 
   accent: '#C54770',
   accentLight: '#D65A83',
@@ -129,12 +129,12 @@ export const Fonts = {
 } as const;
 
 export const FontSizes = {
-  xs: 11,
-  sm: 13,
-  md: 15,
-  lg: 18,
-  xl: 24,
-  xxl: 32,
+  xs: 13,
+  sm: 15,
+  md: 17,
+  lg: 20,
+  xl: 27,
+  xxl: 35,
   hero: 48,
 } as const;
 

@@ -32,7 +32,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function WishlistScreen() {
@@ -74,7 +74,7 @@ export default function WishlistScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
         {/* Savings pool card */}
-        <Animated.View entering={FadeInUp.duration(300)}>
+        <Animated.View entering={FadeIn.duration(200)}>
           <NeoCard color={Colors.surface} offset="sm">
             <View style={styles.savingsHeader}>
               <View style={styles.savingsIconRow}>
@@ -109,7 +109,7 @@ export default function WishlistScreen() {
             {activeItems.map((item, index) => (
               <Animated.View
                 key={item.id}
-                entering={FadeInDown.delay(index * 45).duration(300)}>
+                entering={FadeIn.delay(120 + index * 35).duration(180)}>
                 <WishlistItemCard
                   item={item}
                   savingsBalance={savingsBalance}
@@ -128,7 +128,7 @@ export default function WishlistScreen() {
             {boughtItems.map((item, index) => (
               <Animated.View
                 key={item.id}
-                entering={FadeInDown.delay(index * 30).duration(250)}>
+                entering={FadeIn.delay(120 + index * 30).duration(200)}>
                 <WishlistItemCard
                   item={item}
                   savingsBalance={savingsBalance}
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     backgroundColor: Colors.safe,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: Spacing.xs,
     borderRadius: Radii.sm,
     borderWidth: Borders.thin,
     borderColor: Colors.black,
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
   buyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Spacing.xs,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     borderRadius: Radii.sm,

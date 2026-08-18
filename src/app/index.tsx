@@ -12,10 +12,10 @@ import { currentMonthExpenses, spentByCategory, totalSpent } from '@/utils/budge
 import { formatCurrency } from '@/utils/format';
 import { useFocusEffect } from 'expo-router';
 import { useRouter } from 'expo-router';
-import { ChevronRight, ScanLine, Settings, Sparkles, User, Users, Wallet } from 'lucide-react-native';
+import { ChevronRight, ScanLine, Settings, Sparkles, User, Wallet } from 'lucide-react-native';
 import { useCallback, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function DashboardScreen() {
@@ -122,20 +122,15 @@ export default function DashboardScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        {/* Header */}
+        {/* Header — slides in from top, fast */}
         <Animated.View
-          entering={FadeInUp.duration(300)}
+          entering={FadeIn.duration(200)}
           style={styles.header}>
           <View>
             <Text style={styles.headerTitle}>Sober.Spend</Text>
             <Text style={styles.headerSub}>Spend Like Sober</Text>
           </View>
           <View style={styles.headerActions}>
-            <Pressable
-              onPress={() => router.push('/split')}
-              style={styles.iconBtn}>
-              <Users size={20} color={Colors.white} strokeWidth={2.5} />
-            </Pressable>
             <Pressable
               onPress={() => router.push('/profile')}
               style={styles.iconBtn}>
@@ -149,14 +144,14 @@ export default function DashboardScreen() {
           </View>
         </Animated.View>
 
-        {/* Budget Summary — hero card */}
-        <Animated.View entering={FadeInDown.delay(50).duration(350)}>
+        {/* Budget Summary — hero card, springs in */}
+        <Animated.View entering={FadeIn.delay(50).duration(200)}>
           <BudgetSummary totalSpent={totalUsed} monthlyBudget={monthlyBudget} />
         </Animated.View>
 
-        {/* Risk Banner — second hero card */}
+        {/* Risk Banner — fades in after hero */}
         {riskProps && (
-          <Animated.View entering={FadeInDown.delay(120).duration(350)}>
+          <Animated.View entering={FadeIn.delay(120).duration(250)}>
             <RiskBanner
               riskLevel={riskProps.riskLevel}
               message={riskProps.message}
@@ -165,8 +160,8 @@ export default function DashboardScreen() {
           </Animated.View>
         )}
 
-        {/* Savings & Wishlist entry card */}
-        <Animated.View entering={FadeInDown.delay(160).duration(350)}>
+        {/* Savings & Wishlist entry card — slides up */}
+        <Animated.View entering={FadeIn.delay(150).duration(200)}>
           <Pressable onPress={() => router.push('/wishlist')}>
             <NeoCard color={Colors.surface} offset="sm" style={styles.savingsCard} textured>
               <View style={styles.savingsCardHeader}>
@@ -215,13 +210,13 @@ export default function DashboardScreen() {
           </Pressable>
         </Animated.View>
 
-        {/* Category Cards */}
+        {/* Category Cards — staggered slide-down with spring */}
         <Text style={styles.sectionTitle}>Budgets</Text>
         <View style={styles.categoryList}>
           {categories.map((cat, index) => (
             <Animated.View
               key={cat.id}
-              entering={FadeInDown.delay(200 + index * 45).duration(300)}>
+              entering={FadeIn.delay(180 + index * 40).duration(180)}>
               <CategoryCard category={cat} spent={byCat[cat.name] || 0} />
             </Animated.View>
           ))}
@@ -243,7 +238,7 @@ export default function DashboardScreen() {
             return (
               <Animated.View
                 key={expense.id}
-                entering={FadeInDown.delay(300 + index * 40).duration(250)}>
+                entering={FadeIn.delay(200 + index * 30).duration(200)}>
                 <TransactionItem expense={expense} category={cat} />
               </Animated.View>
             );
@@ -407,10 +402,10 @@ const styles = StyleSheet.create({
   wishlistBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Spacing.xs,
     backgroundColor: Colors.accent,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: Spacing.xs,
     borderRadius: Radii.pill,
     borderWidth: Borders.thin,
     borderColor: Colors.black,

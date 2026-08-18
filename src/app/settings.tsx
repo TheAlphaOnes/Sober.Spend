@@ -39,7 +39,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const iconMap: Record<string, typeof Utensils> = {
@@ -172,6 +172,42 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleDevNuke = () => {
+    Alert.alert(
+      'NUKE EVERYTHING?',
+      'This wipes ALL local data — expenses, splits, groups, contacts, settlements, savings, wishlist, settings. Fresh state, no restart needed. Dev-only.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Nuke It',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { sqlite } = await import('@/db/schema');
+              // Wipe every table, then re-seed the self-contact.
+              // No file deletion, no app reload — just clear data + refresh stores.
+              const tables = [
+                'expenses', 'settings', 'categories',
+                'wishlist_buckets', 'wishlist_items',
+                'vpa_category_map',
+              ];
+              for (const t of tables) {
+                sqlite.execSync(`DELETE FROM ${t}`);
+              }
+              // Refresh all stores so the UI reflects the empty state.
+              loadSettings();
+              useExpenseStore.getState().loadExpenses();
+              Alert.alert('Nuked', 'All local data wiped. App is fresh.');
+            } catch (err) {
+              console.error('[dev-nuke] failed:', err);
+              Alert.alert('Nuke Failed', String(err));
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: insets.top }]}
@@ -188,7 +224,7 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
         {/* How it works — info card */}
-        <Animated.View entering={FadeInDown.delay(0).duration(300)}>
+        <Animated.View entering={FadeIn.duration(200)}>
           <View style={styles.infoCard}>
             <View style={styles.infoHeader}>
               <Info size={16} color={Colors.accent} strokeWidth={2.5} />
@@ -201,7 +237,7 @@ export default function SettingsScreen() {
         </Animated.View>
 
         {/* Monthly Budget */}
-        <Animated.View entering={FadeInDown.delay(60).duration(300)}>
+        <Animated.View entering={FadeIn.delay(80).duration(200)}>
           <Text style={styles.sectionLabel}>MONTHLY BUDGET</Text>
           <View style={styles.amountBox}>
             <Text style={styles.currencySymbol}>₹</Text>
@@ -217,7 +253,7 @@ export default function SettingsScreen() {
         </Animated.View>
 
         {/* Allocation tracker — visual */}
-        <Animated.View entering={FadeInDown.delay(120).duration(300)}>
+        <Animated.View entering={FadeIn.delay(120).duration(200)}>
           <View style={styles.allocationRow}>
             <Text style={styles.allocationLabel}>ALLOCATED</Text>
             <Text
@@ -248,7 +284,7 @@ export default function SettingsScreen() {
         </Animated.View>
 
         {/* Savings — target + deposit/withdraw */}
-        <Animated.View entering={FadeInDown.delay(150).duration(300)}>
+        <Animated.View entering={FadeIn.delay(120).duration(200)}>
           <Text style={styles.sectionLabel}>SAVINGS</Text>
           <NeoCard color={Colors.surface} style={styles.savingsCard}>
             {/* Target input */}
@@ -317,7 +353,7 @@ export default function SettingsScreen() {
         </Animated.View>
 
         {/* Category Limits */}
-        <Animated.View entering={FadeInDown.delay(180).duration(300)}>
+        <Animated.View entering={FadeIn.delay(150).duration(220)}>
           <View style={styles.categoryHeader}>
             <Text style={styles.sectionLabel}>CATEGORY LIMITS</Text>
             <Pressable
@@ -332,7 +368,7 @@ export default function SettingsScreen() {
         {categories.map((cat, index) => (
           <Animated.View
             key={cat.id}
-            entering={FadeInDown.delay(240 + index * 40).duration(250)}>
+            entering={FadeIn.delay(180 + index * 40).duration(180)}>
             <CategoryLimitRow
               category={cat}
               value={categoryInputs[cat.id] ?? ''}
@@ -344,7 +380,7 @@ export default function SettingsScreen() {
         ))}
 
         {/* Save button */}
-        <Animated.View entering={FadeInDown.delay(300 + categories.length * 40).duration(300)}>
+        <Animated.View entering={FadeIn.delay(180).duration(180)}>
           <View style={styles.saveRow}>
             <NeoButton
               title={saved ? 'Saved!' : 'Save Settings'}
@@ -357,7 +393,7 @@ export default function SettingsScreen() {
         </Animated.View>
 
         {/* Danger Zone — Reset Month */}
-        <Animated.View entering={FadeInDown.delay(380 + categories.length * 40).duration(300)}>
+        <Animated.View entering={FadeIn.delay(200).duration(180)}>
           <Pressable
             style={styles.dangerRow}
             onPress={handleResetMonth}>
@@ -375,6 +411,25 @@ export default function SettingsScreen() {
                 </Text>
                 <Text style={styles.dangerDesc}>
                   Clears {new Date().toLocaleString('default', { month: 'long' })} expenses only
+                </Text>
+              </View>
+            </View>
+          </Pressable>
+        </Animated.View>
+
+        {/* Dev Zone — Nuke Everything */}
+        <Animated.View entering={FadeIn.delay(240).duration(180)}>
+          <Pressable
+            style={styles.devRow}
+            onPress={handleDevNuke}>
+            <View style={styles.dangerLeft}>
+              <View style={styles.devIcon}>
+                <Trash2 size={16} color={Colors.exceeded} strokeWidth={2.5} />
+              </View>
+              <View>
+                <Text style={styles.dangerTitle}>Nuke Everything (Dev)</Text>
+                <Text style={styles.dangerDesc}>
+                  Wipes all data + DB. App restarts fresh.
                 </Text>
               </View>
             </View>
@@ -577,7 +632,7 @@ const styles = StyleSheet.create({
   manageBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Spacing.xs,
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.sm,
     borderWidth: Borders.thin,
@@ -673,6 +728,30 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
     color: Colors.textMuted,
     marginTop: 2,
+  },
+  // Dev nuke button
+  devRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderWidth: Borders.thin,
+    borderColor: 'rgba(255, 107, 107, 0.5)',
+    borderRadius: Radii.md,
+    backgroundColor: 'rgba(255, 107, 107, 0.12)',
+    borderStyle: 'dashed',
+  },
+  devIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: Borders.thin,
+    borderColor: 'rgba(255, 107, 107, 0.5)',
+    backgroundColor: 'rgba(255, 107, 107, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // Savings section
   savingsCard: {

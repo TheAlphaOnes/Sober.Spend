@@ -2,6 +2,38 @@ import type { UPIData, PendingTransaction } from '@/types';
 import type { Category } from '@/types';
 
 import { categorize, categorizeMCC } from './categorize';
+import { db, vpaCategoryMap } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+
+/**
+ * Look up a previously saved category for this VPA.
+ * Returns null if no mapping exists.
+ */
+function lookupVpaCategory(vpa: string): string | null {
+  try {
+    const row = db.select().from(vpaCategoryMap).where(eq(vpaCategoryMap.vpa, vpa)).get();
+    return row?.category ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save a VPA → category mapping so the next scan auto-categorizes.
+ */
+export function saveVpaCategory(vpa: string, category: string): void {
+  try {
+    db.insert(vpaCategoryMap)
+      .values({ vpa, category, updated_at: new Date().toISOString() })
+      .onConflictDoUpdate({
+        target: vpaCategoryMap.vpa,
+        set: { category, updated_at: new Date().toISOString() },
+      })
+      .run();
+  } catch (err) {
+    console.error('[vpa-map] Failed to save VPA category:', err);
+  }
+}
 
 /**
  * Parse a UPI deep link string into structured data.
@@ -54,10 +86,17 @@ export function upiToPendingTransaction(
 ): PendingTransaction {
   let category: string | null = null;
 
-  if (upi.mc) {
+  // 1. Check saved VPA → category mapping first (user's past choice)
+  if (upi.pa) {
+    category = lookupVpaCategory(upi.pa);
+  }
+
+  // 2. Fall back to MCC code
+  if (!category && upi.mc) {
     category = categorizeMCC(upi.mc, categories);
   }
 
+  // 3. Fall back to merchant name keyword matching
   if (!category) {
     const merchant = upi.pn || upi.pa?.split('@')[0] || 'Unknown';
     category = categorize(merchant, categories);

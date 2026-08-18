@@ -21,7 +21,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NeoBackButton } from '@/components/ui/neo-back-button';
@@ -149,7 +149,7 @@ export default function ScanScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         {/* Merchant */}
-        <Animated.View entering={FadeInDown.delay(0).duration(300)}>
+        <Animated.View entering={FadeIn.duration(200)}>
           <Text style={styles.inputLabel}>MERCHANT</Text>
           <TextInput
             style={styles.input}
@@ -161,7 +161,7 @@ export default function ScanScreen() {
         </Animated.View>
 
         {/* Amount — big and prominent */}
-        <Animated.View entering={FadeInDown.delay(60).duration(300)}>
+        <Animated.View entering={FadeIn.delay(80).duration(200)}>
           <Text style={styles.inputLabel}>AMOUNT</Text>
           <View style={styles.amountBox}>
             <Text style={styles.currencySymbol}>₹</Text>
@@ -177,7 +177,7 @@ export default function ScanScreen() {
         </Animated.View>
 
         {/* Category chips */}
-        <Animated.View entering={FadeInDown.delay(120).duration(300)}>
+        <Animated.View entering={FadeIn.delay(120).duration(200)}>
           <Text style={styles.inputLabel}>CATEGORY</Text>
           <View style={styles.chipGrid}>
             {categories.map((cat) => {
@@ -214,7 +214,7 @@ export default function ScanScreen() {
         </Animated.View>
 
         {/* Note */}
-        <Animated.View entering={FadeInDown.delay(180).duration(300)}>
+        <Animated.View entering={FadeIn.delay(150).duration(220)}>
           <Text style={styles.inputLabel}>NOTE (IF YOU CARE)</Text>
           <TextInput
             style={styles.input}
@@ -227,7 +227,7 @@ export default function ScanScreen() {
 
         {/* Submit */}
         <Animated.View
-          entering={FadeInDown.delay(240).duration(300)}
+          entering={FadeIn.delay(300).duration(250)}
           style={styles.submitRow}>
           <NeoButton
             title="Let's See the Damage"

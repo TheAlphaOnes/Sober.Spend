@@ -18,7 +18,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NeoBackButton } from '@/components/ui/neo-back-button';
@@ -96,7 +96,7 @@ export default function ProfileScreen() {
         {user ? (
           <>
             {/* Profile identity */}
-            <Animated.View entering={FadeInDown.delay(0).duration(300)}>
+            <Animated.View entering={FadeIn.duration(200)}>
               <NeoCard color={Colors.surface} offset="sm" style={styles.profileCard} textured>
                 <View style={styles.profileHeader}>
                   <View style={styles.avatar}>
@@ -116,7 +116,7 @@ export default function ProfileScreen() {
             </Animated.View>
 
             {/* Stats — compact single-row strip, not a 2x2 grid */}
-            <Animated.View entering={FadeInDown.delay(60).duration(300)}>
+            <Animated.View entering={FadeIn.delay(80).duration(200)}>
               <NeoCard color={Colors.surface} offset="sm" style={styles.statsCard} textured>
                 <View style={styles.statsRow}>
                   <StatItem
@@ -144,34 +144,34 @@ export default function ProfileScreen() {
             </Animated.View>
 
             {/* All settings in one grouped card */}
-            <Animated.View entering={FadeInDown.delay(120).duration(300)}>
+            <Animated.View entering={FadeIn.delay(120).duration(200)}>
               <NeoCard color={Colors.surface} offset="sm" style={styles.listCard} textured>
                 <Pressable onPress={() => router.push('/settings')} style={styles.listCell}>
                   <View style={[styles.listIcon, { backgroundColor: Colors.accent }]}>
-                    <Settings size={16} color={Colors.white} strokeWidth={2.5} />
+                    <Settings size={18} color={Colors.white} strokeWidth={2.5} />
                   </View>
                   <Text style={styles.listText}>Budget Settings</Text>
-                  <ChevronRight size={18} color={Colors.textMuted} strokeWidth={2.5} />
+                  <ChevronRight size={20} color={Colors.textMuted} strokeWidth={2.5} />
                 </Pressable>
 
                 <View style={styles.divider} />
 
                 <Pressable onPress={() => router.push('/categories')} style={styles.listCell}>
                   <View style={[styles.listIcon, { backgroundColor: Colors.orange }]}>
-                    <FolderTree size={16} color={Colors.white} strokeWidth={2.5} />
+                    <FolderTree size={18} color={Colors.white} strokeWidth={2.5} />
                   </View>
                   <Text style={styles.listText}>Manage Categories</Text>
                   <View style={styles.countBadge}>
                     <Text style={styles.countText}>{categories.length}</Text>
                   </View>
-                  <ChevronRight size={18} color={Colors.textMuted} strokeWidth={2.5} />
+                  <ChevronRight size={20} color={Colors.textMuted} strokeWidth={2.5} />
                 </Pressable>
 
                 <View style={styles.divider} />
 
                 <View style={styles.listCell}>
                   <View style={[styles.listIcon, { backgroundColor: Colors.blue }]}>
-                    <Cloud size={16} color={Colors.white} strokeWidth={2.5} />
+                    <Cloud size={18} color={Colors.white} strokeWidth={2.5} />
                   </View>
                   <View style={styles.syncInfo}>
                     <Text style={styles.listText}>Cloud Sync</Text>
@@ -182,7 +182,7 @@ export default function ProfileScreen() {
             </Animated.View>
 
             {/* Sign out — subtle destructive button */}
-            <Animated.View entering={FadeInDown.delay(180).duration(300)} style={styles.signOutRow}>
+            <Animated.View entering={FadeIn.delay(150).duration(220)} style={styles.signOutRow}>
               <Pressable style={styles.signOutBtn} onPress={handleSignOut}>
                 <LogOut size={16} color={Colors.exceeded} strokeWidth={2.5} />
                 <Text style={styles.signOutText}>Sign Out</Text>
@@ -192,7 +192,7 @@ export default function ProfileScreen() {
         ) : (
           <>
             {/* Auth form */}
-            <Animated.View entering={FadeInDown.delay(0).duration(300)}>
+            <Animated.View entering={FadeIn.duration(200)}>
               <NeoCard color={Colors.surface} offset="sm" style={styles.loginCard}>
                 <View style={styles.loginHeader}>
                   <View style={styles.loginIcon}>
@@ -269,7 +269,7 @@ export default function ProfileScreen() {
               </NeoCard>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(60).duration(300)}>
+            <Animated.View entering={FadeIn.delay(80).duration(200)}>
               <NeoCard color={Colors.surfaceLight} style={styles.localCard}>
                 <Text style={styles.localTitle}>Offline Mode Active</Text>
                 <Text style={styles.localDesc}>
@@ -337,9 +337,9 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: Colors.accent,
     borderWidth: Borders.medium,
     borderColor: Colors.black,
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontFamily: Fonts.display,
-    fontSize: FontSizes.xl,
+    fontSize: FontSizes.xxl,
     color: Colors.white,
   },
   profileInfo: {
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
   },
   statDivider: {
     width: 1,
-    height: 28,
+    height: 32,
     backgroundColor: Colors.border,
   },
   statLabel: {
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontFamily: Fonts.display,
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.lg,
     color: Colors.white,
   },
   // Unified list card — settings + categories + sync
@@ -413,12 +413,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.lg,
   },
   listIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: Borders.thin,
@@ -438,10 +438,10 @@ const styles = StyleSheet.create({
   countBadge: {
     backgroundColor: Colors.surfaceLight,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: Spacing.xs,
     borderRadius: Radii.pill,
     borderWidth: Borders.thin,
-    borderColor: Colors.border,
+    borderColor: Colors.borderLight,
   },
   countText: {
     fontFamily: Fonts.display,
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
   syncDesc: {
     fontFamily: Fonts.display,
     fontSize: FontSizes.xs,
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     marginTop: 2,
   },
   // Sign out — full-width destructive button
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontFamily: Fonts.display,
     fontSize: FontSizes.xs,
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     letterSpacing: 2,
     marginBottom: Spacing.xs,
   },

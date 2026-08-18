@@ -25,6 +25,7 @@ import {
 } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type FilterKey = 'all' | string;
@@ -125,8 +126,8 @@ export default function HistoryScreen() {
         <View style={{ width: 38 }} />
       </View>
 
-      {/* Summary — compact inline */}
-      <View style={styles.summaryRow}>
+      {/* Summary — slides in from top */}
+      <Animated.View entering={FadeIn.duration(200)} style={styles.summaryRow}>
         <View>
           <Text style={styles.summaryLabel}>
             {filter === 'all' ? 'TOTAL' : filter.toUpperCase()}
@@ -134,10 +135,10 @@ export default function HistoryScreen() {
           <Text style={styles.summaryAmount}>{formatCurrency(totalAmount)}</Text>
         </View>
         <Text style={styles.summaryCount}>{filtered.length} txns</Text>
-      </View>
+      </Animated.View>
 
-      {/* Sort buttons */}
-      <View style={styles.sortRow}>
+      {/* Sort buttons — fade in after summary */}
+      <Animated.View entering={FadeIn.delay(80).duration(200)} style={styles.sortRow}>
         {SORT_OPTIONS.map((option) => {
           const Icon = option.icon;
           const isActive = sortMode === option.mode;
@@ -157,10 +158,10 @@ export default function HistoryScreen() {
             </Pressable>
           );
         })}
-      </View>
+      </Animated.View>
 
-      {/* Filter chips — horizontal scroll */}
-      <View style={styles.filterContainer}>
+      {/* Filter chips — horizontal scroll, fade in */}
+      <Animated.View entering={FadeIn.delay(120).duration(200)} style={styles.filterContainer}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -185,15 +186,15 @@ export default function HistoryScreen() {
             );
           })}
         </ScrollView>
-      </View>
+      </Animated.View>
 
       {/* Transaction list — flat, no cards */}
       <ScrollView
         style={styles.listScroll}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}>
-        {grouped.map((group) => (
-          <View key={group.label || 'all'} style={styles.group}>
+        {grouped.map((group, groupIndex) => (
+          <Animated.View key={group.label || 'all'} style={styles.group} entering={FadeIn.delay(150 + groupIndex * 50).duration(180)}>
             {group.label !== '' && <Text style={styles.groupLabel}>{group.label}</Text>}
             {group.items.map((expense) => {
               const cat = categories.find((c) => c.name === expense.category);
@@ -211,7 +212,7 @@ export default function HistoryScreen() {
                 </View>
               );
             })}
-          </View>
+          </Animated.View>
         ))}
 
         {filtered.length === 0 && (
@@ -310,7 +311,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: Spacing.xs,
     paddingVertical: Spacing.sm,
     borderWidth: Borders.thin,
     borderColor: Colors.border,

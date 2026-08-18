@@ -43,16 +43,21 @@ export function RiskBanner({ riskLevel, message, highlightedWord }: RiskBannerPr
   return (
     <NeoCard style={styles.cardWrapper} color={color} offset="sm">
       <View style={styles.contentPad}>
-        <Icon size={48} color={Colors.black} strokeWidth={3} style={styles.icon} />
-
-        <Text style={styles.riskLabel}>RISK LEVEL</Text>
-        <Text
-          style={[
-            styles.riskLevelText,
-            { fontSize: levelFontSize, lineHeight: levelLineHeight },
-          ]}>
-          {riskLevel}
-        </Text>
+        <View style={styles.topRow}>
+          <View style={styles.leftCol}>
+            <Text style={styles.riskLabel}>RISK LEVEL</Text>
+            <Text
+              style={[
+                styles.riskLevelText,
+                { fontSize: levelFontSize, lineHeight: levelLineHeight },
+              ]}>
+              {riskLevel}
+            </Text>
+          </View>
+          <View style={styles.iconWrap}>
+            <Icon size={56} color={Colors.black} strokeWidth={2.5} />
+          </View>
+        </View>
 
         <Text style={styles.message}>
           {highlightedWord && parts.length === 2 ? (
@@ -78,8 +83,18 @@ const styles = StyleSheet.create({
   contentPad: {
     padding: Spacing.md,
   },
-  icon: {
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     marginBottom: Spacing.md,
+  },
+  leftCol: {
+    flex: 1,
+  },
+  iconWrap: {
+    marginLeft: Spacing.md,
+    marginTop: Spacing.xs,
   },
   riskLabel: {
     fontFamily: Fonts.display,
@@ -93,7 +108,6 @@ const styles = StyleSheet.create({
     color: Colors.black,
     letterSpacing: 2,
     textTransform: 'uppercase',
-    marginBottom: Spacing.md,
     marginTop: Spacing.xs,
   },
   message: {

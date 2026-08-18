@@ -62,8 +62,6 @@ export default function RootLayout() {
         <Stack.Screen name="history" />
         <Stack.Screen name="categories" />
         <Stack.Screen name="wishlist" />
-        <Stack.Screen name="split" />
-        <Stack.Screen name="split-detail" />
         <Stack.Screen
           name="auth-callback"
           options={{
