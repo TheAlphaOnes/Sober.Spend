@@ -7,24 +7,18 @@ import { useBudgetStore } from '@/stores/budget-store';
 import { useExpenseStore } from '@/stores/expense-store';
 import type { Category } from '@/types';
 import { formatCurrency, sanitizeNumericInput } from '@/utils/format';
+import { getIcon } from '@/utils/icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  Car,
-  Circle,
-  CircleEllipsis,
-  Film,
   FolderTree,
   Info,
   PiggyBank,
   RotateCcw,
   Save,
-  ShoppingBag,
   Trash2,
-  Utensils,
   Wallet,
-  Zap,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -41,15 +35,6 @@ import {
 } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const iconMap: Record<string, typeof Utensils> = {
-  utensils: Utensils,
-  car: Car,
-  'shopping-bag': ShoppingBag,
-  film: Film,
-  zap: Zap,
-  'circle-ellipsis': CircleEllipsis,
-};
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -190,6 +175,8 @@ export default function SettingsScreen() {
                 'expenses', 'settings', 'categories',
                 'wishlist_buckets', 'wishlist_items',
                 'vpa_category_map',
+                'split_groups', 'split_members', 'split_expenses',
+                'split_shares', 'split_payments',
               ];
               for (const t of tables) {
                 sqlite.execSync(`DELETE FROM ${t}`);
@@ -197,6 +184,10 @@ export default function SettingsScreen() {
               // Refresh all stores so the UI reflects the empty state.
               loadSettings();
               useExpenseStore.getState().loadExpenses();
+              const { useWishlistStore } = await import('@/stores/wishlist-store');
+              useWishlistStore.getState().loadWishlist();
+              const { useSplitStore } = await import('@/stores/split-store');
+              useSplitStore.getState().loadSplit();
               Alert.alert('Nuked', 'All local data wiped. App is fresh.');
             } catch (err) {
               console.error('[dev-nuke] failed:', err);
@@ -503,7 +494,7 @@ function CategoryLimitRow({
   value: string;
   onChangeText: (text: string) => void;
 }) {
-  const LucideIcon = iconMap[category.icon] || Circle;
+  const LucideIcon = getIcon(category.icon);
 
   return (
     <NeoCard color={category.color} style={styles.catCard}>

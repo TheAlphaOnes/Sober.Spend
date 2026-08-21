@@ -13,29 +13,11 @@ import { CATEGORY_COLORS, CATEGORY_ICONS } from '@/constants/categories';
 import { useBudgetStore } from '@/stores/budget-store';
 import type { Category } from '@/types';
 import { sanitizeNumericInput } from '@/utils/format';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { getIcon } from '@/utils/icons';
+import { useFocusEffect } from 'expo-router';
 import {
-  Book,
-  Briefcase,
-  Car,
-  Circle,
-  CircleEllipsis,
-  Coffee,
-  Dumbbell,
-  Film,
-  Gift,
-  Heart,
-  Home,
-  Music,
-  Plane,
   Plus,
-  Pill,
-  ShoppingBag,
-  Smartphone,
   Trash2,
-  Utensils,
-  Zap,
-  Fuel,
 } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import {
@@ -49,30 +31,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const iconMap: Record<string, typeof Utensils> = {
-  utensils: Utensils,
-  car: Car,
-  'shopping-bag': ShoppingBag,
-  film: Film,
-  zap: Zap,
-  'circle-ellipsis': CircleEllipsis,
-  coffee: Coffee,
-  plane: Plane,
-  gift: Gift,
-  heart: Heart,
-  dumbbell: Dumbbell,
-  book: Book,
-  music: Music,
-  smartphone: Smartphone,
-  home: Home,
-  briefcase: Briefcase,
-  pill: Pill,
-  fuel: Fuel,
-};
-
 export default function CategoriesScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
 
   const { categories, loadSettings, addCategory, deleteCategory, setCategoryLimit } =
     useBudgetStore();
@@ -125,7 +85,7 @@ export default function CategoriesScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
         {categories.map((cat) => {
-          const LucideIcon = iconMap[cat.icon] || Circle;
+          const LucideIcon = getIcon(cat.icon);
           return (
             <NeoCard key={cat.id} color={cat.color} style={styles.categoryCard}>
               <View style={styles.catHeader}>
@@ -137,21 +97,10 @@ export default function CategoriesScreen() {
                   <Trash2 size={18} color={Colors.black} strokeWidth={2.5} />
                 </Pressable>
               </View>
-              <View style={styles.budgetRow}>
-                <Text style={styles.budgetLabel}>Budget</Text>
-                <TextInput
-                  style={styles.budgetInput}
-                  defaultValue={cat.budgetLimit ? cat.budgetLimit.toString() : ''}
-                  placeholder="0"
-                  placeholderTextColor="rgba(0,0,0,0.3)"
-                  keyboardType="numeric"
-                  onBlur={(e) => {
-                    const text = (e.nativeEvent as any).text;
-                    const val = parseFloat(text);
-                    if (!isNaN(val)) setCategoryLimit(cat.id, val);
-                  }}
-                />
-              </View>
+              <CategoryBudgetField
+                category={cat}
+                onCommit={(val) => setCategoryLimit(cat.id, val)}
+              />
             </NeoCard>
           );
         })}
@@ -206,7 +155,7 @@ export default function CategoriesScreen() {
             <Text style={styles.inputLabel}>Icon</Text>
             <View style={styles.iconGrid}>
               {CATEGORY_ICONS.map((iconName) => {
-                const Icon = iconMap[iconName] || Circle;
+                const Icon = getIcon(iconName);
                 return (
                   <Pressable
                     key={iconName}
@@ -239,6 +188,36 @@ export default function CategoriesScreen() {
           </NeoCard>
         </View>
       </Modal>
+    </View>
+  );
+}
+
+function CategoryBudgetField({
+  category,
+  onCommit,
+}: {
+  category: Category;
+  onCommit: (limit: number) => void;
+}) {
+  const [value, setValue] = useState(
+    category.budgetLimit ? category.budgetLimit.toString() : '',
+  );
+
+  return (
+    <View style={styles.budgetRow}>
+      <Text style={styles.budgetLabel}>Budget</Text>
+      <TextInput
+        style={styles.budgetInput}
+        value={value}
+        placeholder="0"
+        placeholderTextColor="rgba(0,0,0,0.3)"
+        keyboardType="numeric"
+        onChangeText={(text) => setValue(sanitizeNumericInput(text))}
+        onBlur={() => {
+          const val = parseFloat(value);
+          if (!isNaN(val)) onCommit(val);
+        }}
+      />
     </View>
   );
 }

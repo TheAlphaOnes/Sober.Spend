@@ -84,6 +84,58 @@ export const vpaCategoryMap = sqliteTable('vpa_category_map', {
   updated_at: text('updated_at').notNull(),
 });
 
+export const splitGroups = sqliteTable('split_groups', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  kind: text('kind').notNull(),
+  color: text('color').notNull(),
+  invite_token: text('invite_token').notNull(),
+  is_active: integer('is_active').notNull().default(1),
+  created_at: text('created_at').notNull(),
+  updated_at: text('updated_at').notNull(),
+});
+
+export const splitMembers = sqliteTable('split_members', {
+  id: text('id').primaryKey(),
+  group_id: text('group_id').notNull(),
+  display_name: text('display_name').notNull(),
+  phone: text('phone'),
+  user_id: text('user_id'),
+  is_self: integer('is_self').notNull().default(0),
+  left_at: text('left_at'),
+});
+
+export const splitExpenses = sqliteTable('split_expenses', {
+  id: text('id').primaryKey(),
+  group_id: text('group_id').notNull(),
+  paid_by_id: text('paid_by_id').notNull(),
+  total_amount: real('total_amount').notNull(),
+  merchant: text('merchant').notNull(),
+  category: text('category'),
+  note: text('note'),
+  mode: text('mode').notNull(),
+  occurred_at: text('occurred_at').notNull(),
+  deleted_at: text('deleted_at'),
+});
+
+export const splitShares = sqliteTable('split_shares', {
+  id: text('id').primaryKey(),
+  expense_id: text('expense_id').notNull(),
+  member_id: text('member_id').notNull(),
+  amount: real('amount').notNull(),
+});
+
+export const splitPayments = sqliteTable('split_payments', {
+  id: text('id').primaryKey(),
+  group_id: text('group_id').notNull(),
+  from_id: text('from_id').notNull(),
+  to_id: text('to_id').notNull(),
+  amount: real('amount').notNull(),
+  method: text('method').notNull(),
+  occurred_at: text('occurred_at').notNull(),
+  deleted_at: text('deleted_at'),
+});
+
 export type Expense = typeof expenses.$inferSelect;
 export type NewExpense = typeof expenses.$inferInsert;
 export type Setting = typeof settings.$inferSelect;
@@ -144,6 +196,53 @@ const CREATE_STATEMENTS = [
     category TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS split_groups (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    color TEXT NOT NULL,
+    invite_token TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS split_members (
+    id TEXT PRIMARY KEY NOT NULL,
+    group_id TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    phone TEXT,
+    user_id TEXT,
+    is_self INTEGER NOT NULL DEFAULT 0,
+    left_at TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS split_expenses (
+    id TEXT PRIMARY KEY NOT NULL,
+    group_id TEXT NOT NULL,
+    paid_by_id TEXT NOT NULL,
+    total_amount REAL NOT NULL,
+    merchant TEXT NOT NULL,
+    category TEXT,
+    note TEXT,
+    mode TEXT NOT NULL,
+    occurred_at TEXT NOT NULL,
+    deleted_at TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS split_shares (
+    id TEXT PRIMARY KEY NOT NULL,
+    expense_id TEXT NOT NULL,
+    member_id TEXT NOT NULL,
+    amount REAL NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS split_payments (
+    id TEXT PRIMARY KEY NOT NULL,
+    group_id TEXT NOT NULL,
+    from_id TEXT NOT NULL,
+    to_id TEXT NOT NULL,
+    amount REAL NOT NULL,
+    method TEXT NOT NULL,
+    occurred_at TEXT NOT NULL,
+    deleted_at TEXT
+  )`,
 ];
 
 for (const stmt of CREATE_STATEMENTS) {
@@ -154,10 +253,18 @@ for (const stmt of CREATE_STATEMENTS) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Migrations — add new columns to existing tables if they don't exist.
-// SQLite doesn't support IF NOT EXISTS on ALTER TABLE ADD COLUMN, so we
-// check the table schema first and only add missing columns.
-// ---------------------------------------------------------------------------
+try {
+  sqlite.execSync(`
+    DELETE FROM categories
+    WHERE id NOT IN (
+      SELECT MIN(id) FROM categories GROUP BY lower(name)
+    )
+  `);
+  sqlite.execSync(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_categories_name ON categories(name)`,
+  );
+} catch (err) {
+  console.error('[db] Failed to ensure unique category names:', err);
+}
 
 export const db = drizzle(sqlite);

@@ -1,3 +1,4 @@
+import { SplitDashboardCard } from '@/components/split/split-dashboard-card';
 import { BudgetSummary } from '@/components/dashboard/budget-summary';
 import { CategoryCard } from '@/components/dashboard/category-card';
 import { RiskBanner, type RiskLevel } from '@/components/dashboard/risk-banner';
@@ -7,6 +8,7 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { Borders, Colors, Fonts, FontSizes, Radii, Spacing } from '@/constants/theme';
 import { useBudgetStore } from '@/stores/budget-store';
 import { useExpenseStore } from '@/stores/expense-store';
+import { useSplitStore } from '@/stores/split-store';
 import { useWishlistStore } from '@/stores/wishlist-store';
 import { currentMonthExpenses, spentByCategory, totalSpent } from '@/utils/budget-engine';
 import { formatCurrency } from '@/utils/format';
@@ -26,6 +28,7 @@ export default function DashboardScreen() {
   const { monthlyBudget, monthlySavingsTarget, savingsBalance, monthlySavingsDeposited, categories, loadSettings, rolloverIfNeeded } =
     useBudgetStore();
   const { items: wishlistItems, loadWishlist } = useWishlistStore();
+  const loadSplit = useSplitStore((s) => s.loadSplit);
 
   const monthExpenses = useMemo(
     () => currentMonthExpenses(expenses),
@@ -113,7 +116,8 @@ export default function DashboardScreen() {
       loadSettings();
       loadExpenses();
       loadWishlist();
-    }, [rolloverIfNeeded, loadSettings, loadExpenses, loadWishlist]),
+      loadSplit();
+    }, [rolloverIfNeeded, loadSettings, loadExpenses, loadWishlist, loadSplit]),
   );
 
   return (
@@ -208,6 +212,12 @@ export default function DashboardScreen() {
               </View>
             </NeoCard>
           </Pressable>
+        </Animated.View>
+
+        <Animated.View entering={FadeIn.delay(165).duration(240)}>
+          <View style={{ marginTop: Spacing.md }}>
+            <SplitDashboardCard />
+          </View>
         </Animated.View>
 
         {/* Category Cards — staggered slide-down with spring */}

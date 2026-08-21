@@ -10,18 +10,13 @@ import {
 import { useBudgetStore } from '@/stores/budget-store';
 import { useExpenseStore } from '@/stores/expense-store';
 import { formatCurrency, formatDate } from '@/utils/format';
+import { getIcon } from '@/utils/icons';
 import { useFocusEffect } from 'expo-router';
 import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
-  Car,
   Circle,
-  CircleEllipsis,
-  Film,
   LayoutGrid,
-  ShoppingBag,
-  Utensils,
-  Zap,
 } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -37,15 +32,6 @@ const SORT_OPTIONS: { mode: SortMode; label: string; icon: typeof ArrowDownNarro
   { mode: 'highest', label: 'High', icon: ArrowDownNarrowWide },
   { mode: 'lowest', label: 'Low', icon: ArrowUpNarrowWide },
 ];
-
-const iconMap: Record<string, typeof Utensils> = {
-  utensils: Utensils,
-  car: Car,
-  'shopping-bag': ShoppingBag,
-  film: Film,
-  zap: Zap,
-  'circle-ellipsis': CircleEllipsis,
-};
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
@@ -173,7 +159,7 @@ export default function HistoryScreen() {
             onPress={() => setFilter('all')}
           />
           {categories.map((cat) => {
-            const Icon = iconMap[cat.icon] || Circle;
+            const Icon = getIcon(cat.icon);
             return (
               <FilterChip
                 key={cat.id}
@@ -198,7 +184,7 @@ export default function HistoryScreen() {
             {group.label !== '' && <Text style={styles.groupLabel}>{group.label}</Text>}
             {group.items.map((expense) => {
               const cat = categories.find((c) => c.name === expense.category);
-              const LucideIcon = cat ? (iconMap[cat.icon] || Circle) : Circle;
+              const LucideIcon = getIcon(cat?.icon ?? '');
               return (
                 <View key={expense.id} style={styles.txnRow}>
                   <View style={[styles.txnIcon, { backgroundColor: cat?.color || Colors.surfaceLight }]}>

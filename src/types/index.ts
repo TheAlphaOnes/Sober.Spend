@@ -26,6 +26,81 @@ export interface Expense {
   date: string;
 }
 
+export type SplitKind = 'friend' | 'group';
+export type SplitMode = 'equal' | 'dutch';
+export type PayMethod = 'upi' | 'cash';
+
+export interface SplitGroup {
+  id: string;
+  name: string;
+  kind: SplitKind;
+  color: string;
+  inviteToken: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SplitMember {
+  id: string;
+  groupId: string;
+  displayName: string;
+  phone?: string | null;
+  userId?: string | null;
+  isSelf: boolean;
+  leftAt?: string | null;
+}
+
+export interface SplitExpense {
+  id: string;
+  groupId: string;
+  paidById: string;
+  totalAmount: number;
+  merchant: string;
+  category?: string | null;
+  note?: string | null;
+  mode: SplitMode;
+  occurredAt: string;
+  deletedAt?: string | null;
+}
+
+export interface SplitShare {
+  id: string;
+  expenseId: string;
+  memberId: string;
+  amount: number;
+}
+
+export interface SplitPayment {
+  id: string;
+  groupId: string;
+  fromId: string;
+  toId: string;
+  amount: number;
+  method: PayMethod;
+  occurredAt: string;
+  deletedAt?: string | null;
+}
+
+export interface SplitDraft {
+  amount: number;
+  merchant: string;
+  category: string;
+  note?: string;
+  paidAt: string;
+}
+
+export type SplitScanIntent =
+  | { kind: 'expense' }
+  | { kind: 'list' }
+  | { kind: 'group'; groupId: string };
+
+export interface SplitPendingPerson {
+  name: string;
+  phone?: string;
+  userId?: string;
+}
+
 export interface Budget {
   monthlyTotal: number;
   categories: Category[];

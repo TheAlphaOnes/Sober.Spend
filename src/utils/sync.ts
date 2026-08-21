@@ -1,5 +1,4 @@
 import { supabase } from '@/utils/supabase';
-import { useAuthStore } from '@/stores/auth-store';
 import type { Expense, Category } from '@/types';
 
 /**
@@ -15,6 +14,9 @@ import type { Expense, Category } from '@/types';
  */
 
 function getUserId(): string | null {
+  // Lazy require to avoid a require cycle
+  // (auth-store imports fullSync from this module at module level).
+  const { useAuthStore } = require('@/stores/auth-store');
   return useAuthStore.getState().user?.id ?? null;
 }
 
@@ -188,6 +190,44 @@ export async function pullSettings(): Promise<Record<string, string>> {
 // FULL SYNC — pull remote, then push local (merge)
 // ---------------------------------------------------------------------------
 
+function snapshotSettings(budget: {
+  monthlyBudget: number;
+  monthlySavingsTarget: number;
+  savingsBalance: number;
+  monthlySavingsDeposited: number;
+}): Record<string, string> {
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return {
+    monthly_budget: budget.monthlyBudget.toString(),
+    monthly_savings_target: budget.monthlySavingsTarget.toString(),
+    savings_balance: budget.savingsBalance.toString(),
+    [`savings_deposits_${monthKey}`]: budget.monthlySavingsDeposited.toString(),
+  };
+}
+
+/**
+ * Best-effort upload of the current local snapshot.
+ * No-ops when signed out. Never throws to callers.
+ */
+export function schedulePush(): void {
+  if (!getUserId()) return;
+
+  void (async () => {
+    try {
+      const { useExpenseStore } = await import('@/stores/expense-store');
+      const { useBudgetStore } = await import('@/stores/budget-store');
+      await Promise.all([
+        pushExpenses(useExpenseStore.getState().expenses),
+        pushCategories(useBudgetStore.getState().categories),
+        pushAllSettings(snapshotSettings(useBudgetStore.getState())),
+      ]);
+    } catch (err) {
+      console.error('[sync] schedulePush failed:', err);
+    }
+  })();
+}
+
 export async function fullSync(): Promise<void> {
   const userId = getUserId();
   if (!userId) return;
@@ -216,15 +256,10 @@ export async function fullSync(): Promise<void> {
     }
 
     // Push local data back (catches any local-only mutations)
-    const localExpenses = useExpenseStore.getState().expenses;
-    const localCategories = useBudgetStore.getState().categories;
     await Promise.all([
-      pushExpenses(localExpenses),
-      pushCategories(localCategories),
-      pushAllSettings({
-        monthly_budget: useBudgetStore.getState().monthlyBudget.toString(),
-        monthly_savings_target: useBudgetStore.getState().monthlySavingsTarget.toString(),
-      }),
+      pushExpenses(useExpenseStore.getState().expenses),
+      pushCategories(useBudgetStore.getState().categories),
+      pushAllSettings(snapshotSettings(useBudgetStore.getState())),
     ]);
   } catch (err) {
     console.error('[sync] fullSync failed:', err);

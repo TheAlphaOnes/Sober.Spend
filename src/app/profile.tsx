@@ -6,6 +6,7 @@ import {
   FolderTree,
   LogOut,
   Mail,
+  Pencil,
   Settings,
   Shield,
 } from 'lucide-react-native';
@@ -28,6 +29,7 @@ import { Borders, Colors, Fonts, FontSizes, Radii, Spacing } from '@/constants/t
 import { useAuthStore } from '@/stores/auth-store';
 import { useBudgetStore } from '@/stores/budget-store';
 import { useExpenseStore } from '@/stores/expense-store';
+import { useSplitStore } from '@/stores/split-store';
 import { formatCurrency } from '@/utils/format';
 
 export default function ProfileScreen() {
@@ -37,6 +39,9 @@ export default function ProfileScreen() {
   const { user, signInWithEmail, signUpWithEmail, signOut } = useAuthStore();
   const { monthlyBudget, categories } = useBudgetStore();
   const { expenses } = useExpenseStore();
+  const { meName, mePhone } = useSplitStore();
+  const [nameInput, setNameInput] = useState('');
+  const [phoneInput, setPhoneInput] = useState('');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,8 +56,17 @@ export default function ProfileScreen() {
     setError(null);
     setConfirmSent(false);
 
+    if (isSignUp && !nameInput.trim()) {
+      setLoading(false);
+      setError('Name is required.');
+      return;
+    }
+
     const result = isSignUp
-      ? await signUpWithEmail(email.trim(), password)
+      ? await signUpWithEmail(email.trim(), password, {
+          name: nameInput.trim(),
+          phone: phoneInput.trim(),
+        })
       : await signInWithEmail(email.trim(), password);
 
     setLoading(false);
@@ -101,15 +115,17 @@ export default function ProfileScreen() {
                 <View style={styles.profileHeader}>
                   <View style={styles.avatar}>
                     <Text style={styles.avatarText}>
-                      {user.email?.[0]?.toUpperCase() ?? '?'}
+                      {(meName && meName !== 'You' ? meName : user.email)?.[0]?.toUpperCase() ?? '?'}
                     </Text>
                   </View>
                   <View style={styles.profileInfo}>
-                    <Text style={styles.profileEmail} numberOfLines={1}>{user.email}</Text>
-                    <View style={styles.statusRow}>
-                      <View style={styles.onlineDot} />
-                      <Text style={styles.profileSub}>Signed in</Text>
-                    </View>
+                    <Text style={styles.profileEmail} numberOfLines={1}>
+                      {meName && meName !== 'You' ? meName : user.email}
+                    </Text>
+                    <Text style={styles.profileSub} numberOfLines={1}>
+                      {user.email}
+                    </Text>
+                    {mePhone ? <Text style={styles.profileSub}>{mePhone}</Text> : null}
                   </View>
                 </View>
               </NeoCard>
@@ -146,6 +162,16 @@ export default function ProfileScreen() {
             {/* All settings in one grouped card */}
             <Animated.View entering={FadeIn.delay(120).duration(200)}>
               <NeoCard color={Colors.surface} offset="sm" style={styles.listCard} textured>
+                <Pressable onPress={() => router.push('/edit-profile')} style={styles.listCell}>
+                  <View style={[styles.listIcon, { backgroundColor: Colors.pink }]}>
+                    <Pencil size={18} color={Colors.black} strokeWidth={2.5} />
+                  </View>
+                  <Text style={styles.listText}>Edit profile</Text>
+                  <ChevronRight size={20} color={Colors.textMuted} strokeWidth={2.5} />
+                </Pressable>
+
+                <View style={styles.divider} />
+
                 <Pressable onPress={() => router.push('/settings')} style={styles.listCell}>
                   <View style={[styles.listIcon, { backgroundColor: Colors.accent }]}>
                     <Settings size={18} color={Colors.white} strokeWidth={2.5} />
@@ -204,9 +230,35 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={styles.loginDesc}>
                   {isSignUp
-                    ? 'Create an account to sync across devices.'
-                    : 'Sign in to unlock cloud sync and backup.'}
+                    ? 'Split is online. Name and phone so friends can find you.'
+                    : 'Sign in to unlock Split, cloud sync, and backup.'}
                 </Text>
+
+                {isSignUp ? (
+                  <>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>NAME</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Your name"
+                        placeholderTextColor={Colors.textMuted}
+                        value={nameInput}
+                        onChangeText={setNameInput}
+                      />
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>PHONE</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="10-digit number"
+                        placeholderTextColor={Colors.textMuted}
+                        value={phoneInput}
+                        onChangeText={setPhoneInput}
+                        keyboardType="phone-pad"
+                      />
+                    </View>
+                  </>
+                ) : null}
 
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>EMAIL</Text>
@@ -250,7 +302,12 @@ export default function ProfileScreen() {
                     variant="primary"
                     size="lg"
                     onPress={handleAuth}
-                    disabled={loading || !email.trim() || !password.trim()}
+                    disabled={
+                      loading ||
+                      !email.trim() ||
+                      !password.trim() ||
+                      (isSignUp && !nameInput.trim())
+                    }
                   />
                 </View>
 
@@ -326,6 +383,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.display,
     fontSize: FontSizes.xl,
     color: Colors.white,
+  },
+  qrCard: {
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
   },
   // Profile card
   profileCard: {

@@ -3,6 +3,7 @@ import { create } from 'zustand';
 
 import { db, expenses } from '@/db/schema';
 import type { Expense, PendingTransaction } from '@/types';
+import { schedulePush } from '@/utils/sync';
 
 interface ExpenseState {
   expenses: Expense[];
@@ -34,6 +35,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       .values({ ...expense, date })
       .run();
     get().loadExpenses();
+    schedulePush();
   },
 
   removeExpense: (id) => {
@@ -41,6 +43,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     set((state) => ({
       expenses: state.expenses.filter((e) => e.id !== id),
     }));
+    schedulePush();
   },
 
   setPendingTransaction: (tx) => {
@@ -64,10 +67,17 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
     set({ pendingTransaction: null });
     get().loadExpenses();
+    schedulePush();
   },
 
   clearAll: () => {
+    try {
+      db.delete(expenses).run();
+    } catch (err) {
+      console.error('[expense-store] clearAll failed:', err);
+    }
     set({ expenses: [], pendingTransaction: null });
+    schedulePush();
   },
 
   resetCurrentMonth: () => {
@@ -76,6 +86,7 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
       db.delete(expenses).where(gte(expenses.date, monthStart)).run();
       get().loadExpenses();
+      schedulePush();
     } catch (err) {
       console.error('[expense-store] resetCurrentMonth failed:', err);
     }

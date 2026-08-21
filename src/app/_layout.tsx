@@ -4,15 +4,17 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Platform, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Colors, Fonts } from '@/constants/theme';
 import { useAuthStore } from '@/stores/auth-store';
+import { useSplitStore } from '@/stores/split-store';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const initializeAuth = useAuthStore((s) => s.initialize);
+  const loadSplit = useSplitStore((s) => s.loadSplit);
 
   const [fontsLoaded] = useFonts({
     [Fonts.display]: require('../../assets/fonts/JockeyOne-Regular.ttf'),
@@ -21,7 +23,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     initializeAuth();
-  }, [initializeAuth]);
+    loadSplit();
+  }, [initializeAuth, loadSplit]);
 
   useEffect(() => {
     if (fontsLoaded) {
@@ -58,10 +61,12 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen name="profile" />
+        <Stack.Screen name="edit-profile" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="history" />
         <Stack.Screen name="categories" />
         <Stack.Screen name="wishlist" />
+        <Stack.Screen name="split" />
         <Stack.Screen
           name="auth-callback"
           options={{

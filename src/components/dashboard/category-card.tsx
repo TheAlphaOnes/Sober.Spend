@@ -3,7 +3,7 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { Colors, Fonts, FontSizes, Radii, Spacing } from '@/constants/theme';
 import type { Category } from '@/types';
 import { formatCurrency, formatPercent } from '@/utils/format';
-import { Car, Circle, CircleEllipsis, Film, ShoppingBag, Utensils, Zap } from 'lucide-react-native';
+import { getIcon } from '@/utils/icons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -11,15 +11,6 @@ interface CategoryCardProps {
   category: Category;
   spent: number;
 }
-
-const iconMap: Record<string, typeof Utensils> = {
-  utensils: Utensils,
-  car: Car,
-  'shopping-bag': ShoppingBag,
-  film: Film,
-  zap: Zap,
-  'circle-ellipsis': CircleEllipsis,
-};
 
 /**
  * Category card — colored fill with black text.
@@ -30,7 +21,7 @@ const iconMap: Record<string, typeof Utensils> = {
  */
 export function CategoryCard({ category, spent }: CategoryCardProps) {
   const percent = category.budgetLimit > 0 ? Math.round((spent / category.budgetLimit) * 100) : 0;
-  const LucideIcon = iconMap[category.icon] || Circle;
+  const LucideIcon = getIcon(category.icon);
 
   return (
     <NeoCard color={category.color}>

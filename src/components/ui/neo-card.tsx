@@ -84,6 +84,7 @@ const styles = StyleSheet.create({
     borderWidth: Borders.medium,
     padding: Spacing.md,
     overflow: 'hidden',
+    width: '100%',
   },
   solidShadow: {
     position: 'absolute',

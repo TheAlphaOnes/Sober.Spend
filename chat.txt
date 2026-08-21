@@ -1,0 +1,2068 @@
+## User
+
+get the whole HANDOUT.md project into your context and then see the codeabse properly no skimming 
+
+## Assistant
+
+I'll load `HANDOUT.md` fully, then walk the repo structure and key source files in depth so the project is actually in context, not skimmed.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/HANDOUT.md
+- ListDir: .
+
+## Assistant
+
+HANDOUT is in. Next I’m reading every app source file end to end — schema, stores, engines, screens, and UI — no summaries-only pass.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/types/index.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/wishlist-store.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/package.json
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/icons.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/upi-parser.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/supabase.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/decision-engine.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/budget-engine.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/categorize.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/constants/theme.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/format.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/constants/categories.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/settings.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/history.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/scan.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/auth-callback.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/wishlist.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/ui/neo-card.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/ui/neo-button.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/categories.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/ui/neo-back-button.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/ui/progress-bar.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/ui/hatch-texture.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/dashboard/budget-summary.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/dashboard/transaction-item.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/dashboard/risk-banner.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/dashboard/category-card.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/app.json
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/tsconfig.json
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/supabase/migrations/0001_sober_spend_schema.sql
+
+## Assistant
+
+HANDOUT and the app source are loaded. Here is the actual system, including where the handout and the code disagree.
+
+## Product
+
+Sober.Spend is an offline-first **pre-transaction** UPI layer: scan or type a payment → parse VPA/merchant/amount/MCC → categorize → score against monthly budget + category limits → show a risk screen → confirm → open UPI with the amount filled → record the expense.
+
+Login is optional. SQLite is source of truth. Supabase is opportunistic sync.
+
+## Stack (verified)
+
+Expo 57 / RN 0.86 / TS 6 / Expo Router / expo-sqlite + Drizzle / Zustand / Supabase / Reanimated 4.5 / lucide / expo-camera. Path aliases: `@/*` → `src/*`, `@/db/*` → `db/*`. Scheme: `soberspend`.
+
+## Data
+
+Local tables in `db/schema.ts` (created with raw `CREATE TABLE IF NOT EXISTS` on import):
+
+- `expenses` — amount, **category name** (not id), merchant, note, ISO date
+- `settings` — key/value (`monthly_budget`, `monthly_savings_target`, `savings_balance`, `categories_seeded`, `last_rollover_month`, `savings_deposits_YYYY-MM`)
+- `categories` — name, color, icon, budget_limit, keywords JSON, sort_order
+- `wishlist_buckets` / `wishlist_items` (status: funding | ready | bought)
+- `vpa_category_map` — VPA → last chosen category
+
+Supabase `0001` only has `expenses`, `categories`, `settings` + RLS. **No `profiles`, wishlist, or VPA tables** in that migration, despite HANDOUT claiming they exist.
+
+## Stores
+
+**auth** — session, email/password, `ensureProfile` upsert. On launch / sign-in / `SIGNED_IN` / `TOKEN_REFRESHED` it calls `fullSync()`. HANDOUT is stale here: it says sync is unused.
+
+**budget** — monthly budget (default ₹30,000), savings target, persistent `savingsBalance`, monthly deposit counter. `addToSavings` / `deductFromSavings` move both wallet and month counter. `spendFromSavings` only hits the wallet (no double-count). `rolloverIfNeeded` once per month: leftover `budget − prevSpent − prevDeposits` goes into the savings pool.
+
+**expense** — list + `pendingTransaction`. Confirm writes SQLite then clears pending. `resetCurrentMonth` deletes this month’s rows. `mergeRemoteExpenses` dedupes on `date|merchant|amount`. `clearAll` only clears Zustand, not SQLite.
+
+**wishlist** — buckets + items. `buyItem`: if savings ≥ price → `spendFromSavings`; else `addExpense` as Other / “Wishlist purchase”. **No `fundItem` / `unfundItem`.** HANDOUT describes a funding pipeline that is not in the store. UI affordability is “can the whole pool cover the price?”, not per-item `funded_amount`.
+
+## Engines
+
+Categorize: VPA map → MCC ranges (Food/Travel/Entertainment/Bills/Shopping) → keyword includes → `"Other"`.
+
+Decision: used = month expenses + monthly savings deposits. Category % uses category limit or monthly budget. Levels: exceeded if category ≥ 100%; near_limit if category ≥ 80% or monthly ≥ 90%; else safe.
+
+UPI parse requires `upi://pay` + `pa`. Pay on decision builds a new `upi://pay?...` and `Linking.openURL`. `buildUPIDeepLink` exists but decision does not use it.
+
+## Screens
+
+Stack: index, scan (from bottom), decision (no gesture), profile, settings, history, categories, wishlist, auth-callback.
+
+- **Dashboard** — `BudgetSummary` (spent includes savings deposits; overspend tilt + red spill), `RiskBanner` (BROKE/DANGER/WASTED/WARNING/SUS/SAFE/CHILL), savings card, category cards, last 6 txns, scan FAB. Risk copy in `index.tsx` is **not** the sample lines in HANDOUT.
+- **Scan** — camera QR or manual. Uses `getIcon`. Fake scan: BigBazaar ₹1250 MCC 5411.
+- **Decision** — category chips, before/after meter, Pay Up / Send It Anyway. Blocks if still on Other without override. Still has a **local 6-icon map**, not `getIcon`.
+- **History** — sort + category chips, grouped dates.
+- **Settings** — budget, allocation bar, savings add/withdraw, category limits, reset month, dev nuke (DELETE all local tables).
+- **Categories** — add/delete, inline limit on blur.
+- **Wishlist** — pool + buy/remove; add modal with optional URL.
+- **Profile** — optional auth + stats. Cloud row says “Local storage active” even when signed in.
+
+UI primitives: `NeoCard` (hard offset shadow + optional hatch), `NeoButton` / `NeoBackButton` (two-phase spring), `ProgressBar`, dashboard cards. Theme is neo-brutalist dark (`#0A0A0A`, accent `#C54770`, Jockey One + SignPainter).
+
+## HANDOUT vs code (real drift)
+
+| HANDOUT | Code |
+|---|---|
+| `sync.ts` unused | Wired from `auth-store` |
+| Wishlist fund/unfund | Not implemented |
+| Supabase has profiles + wishlist | Migration does not |
+| Risk copy samples | Different strings on dashboard |
+| Decision uses `buildUPIDeepLink` | Inline URL |
+| Shared icon util everywhere | Only `scan.tsx`; others duplicate `iconMap` |
+
+Ready to work against this as the live architecture, not the handout’s older snapshot. What do you want next?
+
+## User
+
+fix the current problems 
+
+## Assistant
+
+I’ll treat the HANDOUT/code mismatches as a concrete bug list, then fix them in the stores, sync layer, and screens so the live app matches the intended architecture.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/scan.tsx (2-36)
+- Search: iconMap|onConflictDoNothing|clearAll|fullSync|pushExpenses|getIcon
+
+## Assistant
+
+I’m applying the real bugs first: shared icons, UPI link builder, SQLite/sync correctness, then the small UI and HANDOUT mismatches.
+
+## Tools
+
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/dashboard/category-card.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/dashboard/transaction-item.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/dashboard/category-card.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/dashboard/transaction-item.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/dashboard/category-card.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/history.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/settings.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/history.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/settings.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/history.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/settings.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/settings.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/history.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/settings.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/categories.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/categories.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/categories.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/categories.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/categories.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/ui/neo-back-button.tsx
+- Search: router
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/categories.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/categories.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx (2-16)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/supabase/migrations/0002_profiles.sql
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts (2-6)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Search: snapshotSettings
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts (246-268)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/budget-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/HANDOUT.md
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/HANDOUT.md
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/HANDOUT.md
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/HANDOUT.md
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/HANDOUT.md
+- Search: useRouter
+- Search: Animation
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/HANDOUT.md
+- Execute: npx tsc --noEmit (Typecheck the project after fixes)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/wishlist.tsx
+- Search: CircleEllipsis
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/wishlist.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/wishlist.tsx
+- Execute: npx tsc --noEmit (Re-run typecheck after unused import cleanup)
+
+## Assistant
+
+The live bugs from the HANDOUT vs code pass are fixed. `tsc --noEmit` is clean. This is a native Expo app, so I could not click through it in a browser.
+
+### Data and sync
+- `clearAll` now deletes SQLite expenses, not just Zustand.
+- Category names are unique: duplicate rows are removed, then `idx_categories_name` is created. Remote merge no longer uses a non-existent unique target.
+- Dev nuke also reloads the wishlist store.
+- `schedulePush()` runs after expense and budget writes when signed in. Sync now includes `savings_balance` and the current month’s deposit counter.
+- Pulling remote settings also refreshes `monthlySavingsDeposited`.
+- Added `supabase/migrations/0002_profiles.sql` so `ensureProfile` has a real table.
+
+### Pay / decide / icons
+- Decision pay uses `buildUPIDeepLink`.
+- Decision no longer crashes if `Other` was deleted; it blocks if there are no categories at all.
+- `getIcon` is the single icon map on scan, decision, history, settings, categories, and dashboard cards.
+
+### UI / safety
+- Category budget fields are controlled inputs (no `as any` on blur).
+- Back button falls back to `/` when the stack is empty.
+- Signed-in profile copy says sync is on, not “local storage only”.
+- Unused imports cleaned (`Platform` in layout, dead router/icon imports).
+
+### HANDOUT
+- Updated to match the real wishlist buy-from-pool flow, wired sync, profiles migration, live risk copy, and remaining debt.
+
+Not rebuilt: per-item fund/unfund. The UI already treats the savings pool as one wallet; I documented that instead of restoring a dead pipeline.
+
+Apply `0002_profiles.sql` on your Supabase project (`supabase db push` or the SQL editor) so profile upserts stop failing on a missing table.
+
+## User
+
+Console Error
+
+[sync] pushCategories failed: Could not find the table 'public.categories' in the schema cache
+
+Source:
+/Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts (68:17)
+
+Call Stack:
+addLog (/Users/vishnu_mac/Desktop/room/test/Sober.Spend/node_modules/.pnpm/react-native@0.86.2_@babel+core@7.29.7_@react-native+metro-config@0.86.2_@babel+core@7._b5c56f9dfccf121896b0e875bdc4c53e/node_modules/react-native/Libraries/LogBox/Data/LogBoxData.js:235)
+addConsoleLog (/Users/vishnu_mac/Desktop/room/test/Sober.Spend/node_modules/.pnpm/react-native@0.86.2_@babel+core@7.29.7_@react-native+metro-config@0.86.2_@babel+core@7._b5c56f9dfccf121896b0e875bdc4c53e/node_modules/react-native/Libraries/LogBox/LogBox.js:213)
+reactConsoleErrorHandler (/Users/vishnu_mac/Desktop/room/test/Sober.Spend/node_modules/.pnpm/react-native@0.86.2_@babel+core@7.29.7_@react-native+metro-config@0.86.2_@babel+core@7._b5c56f9dfccf121896b0e875bdc4c53e/node_modules/react-native/Libraries/Core/ExceptionsManager.js:248)
+console.level (/Users/vishnu_mac/Desktop/room/test/Sober.Spend/node_modules/.pnpm/react-native@0.86.2_@babel+core@7.29.7_@react-native+metro-config@0.86.2_@babel+core@7._b5c56f9dfccf121896b0e875bdc4c53e/node_modules/react-native/Libraries/Core/setUpDeveloperTools.js:42)
+pushCategories (/Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts:68)
+
+## Assistant
+
+The app is talking to Supabase, but `public.categories` isn’t in that project’s schema. I’ll check the local migrations and apply them to the linked database.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.agents/skills/appwrite-typescript/SKILL.md
+- ListDir: supabase
+- Search: supabase
+- ListDir: .
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts (1-80)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/supabase/migrations/0001_sober_spend_schema.sql
+- Execute: which supabase; ls -la .env.local .env 2>/dev/null; ls -la supabase/config.toml .supabase 2>/dev/null; ls -la ~/.supabase 2>/dev/null | head (Check Supabase CLI and project env/link)
+- Execute: # Print only key names and whether values exist; extract project ref from URL without printing the key
+python3 - <<'PY'
+from pathlib import Path
+p = Path('.env.local')
+text = p.read_text()
+for line in text.splitlines():
+    if not line.strip() or line.strip().startswith('#') or '=' not in line:
+        continue
+    k,v = line.split('=',1)
+    v=v.strip().strip('"').strip("'")
+    print(f"{k}: set={bool(v)} len={len(v)}")
+    if 'SUPABASE_URL' in k:
+        print('url_host=', v.split('//')[-1][:40])
+PY
+ls -la supabase/ config.toml 2>/dev/null; supabase projects list 2>&1 | head -20 (Inspect env keys and supabase CLI login)
+- Execute: ls -la supabase/.temp 2>/dev/null; supabase db push --dry-run 2>&1 (Dry-run pushing Supabase migrations)
+- Execute: supabase migration list 2>&1; echo '---'; supabase db dump --schema public --dry-run 2>&1 | head -5; echo '--- inspect'; supabase inspect db table-sizes 2>&1 | head -40 (List remote migrations and inspect tables)
+
+## Assistant
+
+Remote already applied older `0001`/`0002` (todos/splits), so our Sober.Spend tables never landed. I’ll add a new migration that creates `expenses`, `categories`, and `settings`, then push it.
+
+## Tools
+
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/supabase/migrations/0004_sober_spend_core.sql
+- Execute: supabase db push --yes 2>&1 (Push new Sober.Spend schema migration to remote)
+- Execute: supabase migration list --help 2>&1 | head -40; echo '---'; supabase db dump --help 2>&1 | head -30 (Check how to inspect remote migration 0003)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/supabase/migrations/0003_remote_existing.sql
+- Execute: supabase db push --yes 2>&1 (Push 0004 after aligning local 0003 history)
+- Execute: supabase inspect db table-stats --linked 2>&1 | head -30 (Confirm categories/expenses/settings exist remotely)
+
+## Assistant
+
+The error was on the **remote database**, not in the client upsert.
+
+Your linked project (`lhyvvvkquizmsldlxyow`) already had migrations `0000`–`0003` from the older todos/splits schema. Local files named `0001` / `0002` were never applied as Sober.Spend tables, so PostgREST had no `public.categories`.
+
+I added `0004_sober_spend_core.sql` and pushed it. Remote now has:
+
+- `public.expenses`
+- `public.categories`
+- `public.settings`
+
+plus RLS, grants, and the unique index `sync.ts` needs for expense upserts (`user_id, date, merchant, amount`).
+
+Reload the app (or sign in again). Sync should stop logging that schema-cache error. If LogBox still shows a cached line, dismiss it and trigger one save or re-login.
+
+## User
+
+359c030/node_modules/expo-router/entry.js (1 module)
+ WARN  No native ExponentConstants module found, are you sure the expo-constants's module is linked properly?
+ ERROR  [runtime not ready]: Error: Cannot find native module 'ExpoAsset'
+ ERROR  [runtime not ready]: Error: Cannot find native module 'ExpoAsset'
+ ERROR  [runtime not ready]: Invariant Violation: "main" has not been registered. This can happen if:
+* Metro (the local dev server) is run from the wrong folder. Check if Metro is running, stop it and restart it in the current project.
+* A module failed to load due to an error and `AppRegistry.registerComponent` wasn't called.
+ ERROR  [runtime not ready]: Error: Non-js exception: AppRegistryBinding::stopSurface failed. Global was not installed.
+iOS Bundled 131ms node_modules/.pnpm/expo-router@57.0.13_6939ff88e9ac8b478520d6e08359c030/node_modules/expo-router/entry.js (1 module)
+iOS Bundled 394ms src/stores/expense-store.ts (836 modules)
+iOS Bundled 248ms src/stores/budget-store.ts (910 modules)
+ ERROR  [sync] pushCategories failed: Could not find the table 'public.categories' in the schema cache
+
+Code: sync.ts
+
+## Assistant
+
+Two separate failures: the iOS runtime is missing native modules (`ExpoAsset`), and PostgREST still doesn’t see `public.categories`. I’ll verify the remote schema exposure and the Expo native/JS link.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/supabase.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts (1-80)
+- Execute: supabase inspect db table-stats --linked 2>&1 | head -25; echo '---'; cat package.json; echo '---app---'; python3 - <<'PY'
+import json
+print(json.load(open('app.json'))['expo'].get('plugins'))
+print('sdk', json.load(open('package.json')).get('dependencies',{}).get('expo'))
+PY
+ls node_modules/expo-asset 2>/dev/null | head
+ls node_modules/expo-constants 2>/dev/null | head
+grep -n "expo-dev-client\|ExpoAsset\|expo-asset" package.json app.json ios/Podfile.lock 2>/dev/null | head (Check DB tables and Expo native module setup)
+- Execute: supabase --help 2>&1 | rg -i "sql|execute|inspect" ; supabase db --help 2>&1 | head -40 (Find CLI command to run SQL on remote)
+- Execute: supabase db query --linked "
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.categories, public.expenses, public.settings TO anon, authenticated, service_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+NOTIFY pgrst, 'reload schema';
+SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('categories','expenses','settings') ORDER BY 1;
+SELECT grantee, table_name, privilege_type
+FROM information_schema.role_table_grants
+WHERE table_schema='public' AND table_name IN ('categories','expenses','settings')
+  AND grantee IN ('anon','authenticated','service_role')
+ORDER BY 2,1,3;
+" 2>&1 (Grant API roles and reload PostgREST schema cache)
+- Execute: python3 - <<'PY'
+from pathlib import Path
+import urllib.request, json
+env = {}
+for line in Path('.env.local').read_text().splitlines():
+    if '=' in line and not line.strip().startswith('#'):
+        k,v=line.split('=',1)
+        env[k.strip()]=v.strip().strip('"').strip("'")
+url = env['EXPO_PUBLIC_SUPABASE_URL'].rstrip('/') + '/rest/v1/categories?select=id&limit=1'
+key = env['EXPO_PUBLIC_SUPABASE_KEY']
+req = urllib.request.Request(url, headers={
+    'apikey': key,
+    'Authorization': f'Bearer {key}',
+})
+try:
+    with urllib.request.urlopen(req) as r:
+        print('status', r.status)
+        print('body', r.read()[:200])
+except Exception as e:
+    if hasattr(e, 'read'):
+        print('http_error', getattr(e,'code',None), e.read().decode()[:500])
+    else:
+        print('err', type(e), e)
+PY (Probe PostgREST /categories with project API key)
+- Execute: set -a; source .env.local; set +a
+curl -sS -o /tmp/sb-cat.json -w "%{http_code}" \
+  "$EXPO_PUBLIC_SUPABASE_URL/rest/v1/categories?select=id&limit=1" \
+  -H "apikey: $EXPO_PUBLIC_SUPABASE_KEY" \
+  -H "Authorization: Bearer $EXPO_PUBLIC_SUPABASE_KEY"
+echo
+python3 -c "print(open('/tmp/sb-cat.json').read()[:400])" (curl PostgREST categories endpoint)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/supabase/migrations/0005_postgrest_grants.sql
+- Execute: supabase db push --yes 2>&1
+npx expo install expo-asset 2>&1 | tail -20 (Push PostgREST grants and add expo-asset)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/app.json
+
+## Assistant
+
+These are two different failures.
+
+### 1. `public.categories` schema cache
+
+The table **was already in Postgres**. PostgREST did not advertise it because the API roles (`anon` / `authenticated`) did not have grants, so the JS client said “not in the schema cache.”
+
+I granted those roles, reloaded the schema cache, and pushed `0005_postgrest_grants.sql`. A live REST check now returns **200** on `/rest/v1/categories`.
+
+Reload the app (or sign in again). That sync error should be gone.
+
+### 2. `ExpoAsset` / `ExponentConstants` / `main has not been registered`
+
+That is a **native binary vs Metro** mismatch, not a sync bug. The JS bundle asked for native modules that the running iOS app did not have. Common causes: Expo Go instead of your `SoberSpend` build, or a stale simulator app after JS-only reloads.
+
+I added `expo-asset` as a direct dependency (SDK 57.0.12) and the `expo-asset` plugin. That only takes effect after a **native rebuild**.
+
+From the project root:
+
+```bash
+# stop Metro (Ctrl+C), then:
+pnpm ios
+```
+
+Open the **Sober.Spend** app on the simulator, not Expo Go. After it boots, the first block of “runtime not ready” errors should not come back, and category push should succeed.
+
+## User
+
+what is the app about 
+
+## Assistant
+
+**Sober.Spend** is an offline-first UPI budgeting app. The line is **“Spend Like Sober.”** It sits in front of a payment, not after it.
+
+You scan a UPI QR (or type the merchant and amount). The app reads the VPA, merchant, amount, and MCC, guesses a category, then checks that spend against your monthly budget and category limits. You get a decision screen with a risk level (SAFE, WARNING, DANGER, BROKE, and similar) before you pay. Confirm, and it opens the UPI app with the amount filled in and logs the expense.
+
+That is the point: it is a **pre-transaction** layer, not a receipt tracker.
+
+Around that loop it also has:
+
+- A monthly budget plus per-category limits  
+- A savings pool (deposits count as “used” this month; the pool itself does not reset)  
+- A wishlist you can buy from savings or as a normal expense  
+- Optional login so expenses, categories, and settings sync via Supabase  
+
+Design-wise it is neo-brutalist and dark: thick borders, hard offset shadows, big numbers, short Gen Z copy. Core use works with no account; login only unlocks cloud sync.
+
+## User
+
+okay so i want to make a spliting betweeen group and friends yk system a part fo this app yk suggest me the feature you have you plan the whole feature what will be there how will be there , it should be very very simple to use and undersatnd adding a entry and things yk easy should be nice yk the UX is the must , but dont loose anything yk and also the 2 things okay 1. equal spliting and 2. unequal / dutch type yk , and i want a systm which is like parial playing ( like if someone have to pay 300 but for just now he have pay 100 so this type of situaltions )  and i am thnkng of making it a pot type of system which is like not over complicated system yk , and i want to do things like add people from the phone contacts yk simple and easy well i want everything synced with app and db so if someone use soberspend he can get the same thing directly and we can do , and i want everything to be proper time and date stamped when was the expence and when setteled yk , i am just dumping my brain out for now but you have to take it and make it into a proper plan of actions which should not feel overwelming for the user yk flow should be effortless in the app yk , you can do research on how other complany does things and sutff
+
+## Assistant
+
+You want a simple group/friends split system with equal, Dutch, partial pays, and a pot — I’ll research how the best split apps do this, then turn your notes into a concrete product plan that fits Sober.Spend.
+
+## Tools
+
+- Read: /Users/vishnu_mac/.grok/bundled/skills/design/SKILL.md
+- Read: /Users/vishnu_mac/.agents/skills/webfn/SKILL.md
+- Search: split|settlement|group_member
+- WebSearch: Splitwise vs Splitkaro vs Tricount vs Google Pay split bill UX equal Dutch partial payments pot
+- WebSearch: best bill splitting app India UX pot group expenses partial settlement simplify debts 2025
+- Read: /Users/vishnu_mac/.grok/bundled/skills/shared/personas/design-doc-reviewer.md
+- Read: /Users/vishnu_mac/.grok/bundled/skills/shared/personas/design-doc-writer.md
+- Execute: python3 -c "import uuid; print(uuid.uuid4().hex[:8])" && scratch_dir="${TMPDIR:-/tmp}/grok-$(id -u)"; mkdir -p "$scratch_dir" && chmod 700 "$scratch_dir" && echo "$scratch_dir" (Generate design ID and scratch directory)
+- WebSearch: Niptao bill split UPI pot model how it works India
+- WebSearch: Splitkaro app how it works contacts UPI settle split bills India pot
+- Execute: supabase db dump --linked -s public --file /tmp/sober-public.sql 2>&1 | tail -5
+python3 - <<'PY'
+from pathlib import Path
+text = Path('/tmp/sober-public.sql').read_text(errors='ignore')
+for name in ['split_groups','split_expenses','split_shares','group_members','settlements','profiles']:
+    i = text.lower().find(f'create table public.{name}')
+    print('====', name, 'found' if i>=0 else 'MISSING')
+    if i>=0:
+        print(text[i:i+1800])
+        print('---')
+PY (Dump remote split-related table schemas)
+- Execute: supabase db query --linked "
+SELECT table_name, column_name, data_type, is_nullable, column_default
+FROM information_schema.columns
+WHERE table_schema='public'
+  AND table_name IN ('split_groups','split_expenses','split_shares','group_members','settlements','profiles')
+ORDER BY table_name, ordinal_position;
+" 2>&1 (Query remote split table columns)
+
+## Assistant
+
+Existing remote split tables are in place. Launching the writer with that schema, competitor research, and your pot/partial-pay requirements.
+
+Writer is running on the pots/splits design. I’ll review it as soon as the first draft lands.
+
+Design document drafted. Starting review...
+
+## Tools
+
+- Read: /var/folders/xg/t1503z6168n4yv1zfg0hdxg80000gn/T/grok-501/grok-design-summary-98b8ef82.md
+- Read: /var/folders/xg/t1503z6168n4yv1zfg0hdxg80000gn/T/grok-501/grok-design-review-98b8ef82.md
+
+## Assistant
+
+Reviewer found 26 issues (5 critical, 16 major, 4 minor, 1 nit). Resuming the writer to revise...
+
+## Tools
+
+- Read: /var/folders/xg/t1503z6168n4yv1zfg0hdxg80000gn/T/grok-501/grok-design-review-98b8ef82.md (1-80)
+
+## Assistant
+
+Re-review (round 2): 10 issues still open (1 critical, 6 major, 1 minor, 2 nits). Sending those back to the writer.
+
+Re-review (round 3): 5 issues left (3 major, 1 minor, 1 nit). Sending them back.
+
+Review passed with 0 issues. Finalizing the plan and pulling out the decisions and questions you still need to pick.
+
+## Tools
+
+- Search: ^##
+- Read: /var/folders/xg/t1503z6168n4yv1zfg0hdxg80000gn/T/grok-501/grok-design-doc-98b8ef82.md (1251-1390)
+- Read: /var/folders/xg/t1503z6168n4yv1zfg0hdxg80000gn/T/grok-501/grok-design-doc-98b8ef82.md (197-266)
+- Read: /var/folders/xg/t1503z6168n4yv1zfg0hdxg80000gn/T/grok-501/grok-design-doc-98b8ef82.md (173-262)
+- Execute: mkdir -p docs && cp "/var/folders/xg/t1503z6168n4yv1zfg0hdxg80000gn/T/grok-501/grok-design-doc-98b8ef82.md" docs/pots-design.md && wc -l docs/pots-design.md (Copy approved design doc into the repo)
+- Execute: rm -f /var/folders/xg/t1503z6168n4yv1zfg0hdxg80000gn/T/grok-501/grok-design-summary-98b8ef82.md /var/folders/xg/t1503z6168n4yv1zfg0hdxg80000gn/T/grok-501/grok-design-review-98b8ef82.md (Remove temporary review/summary artifacts)
+- Tool: Ask 5 questions
+
+## Assistant
+
+The feature is **Pots**. Full spec is in [`docs/pots-design.md`](docs/pots-design.md). You locked the product calls to the recommended defaults.
+
+## The idea
+
+A pot is a shared notebook, not a wallet. The app never holds money.
+
+- **With a person** — you and Riya. Created when you confirm the first drop. Named after them.
+- **With a crew** — Goa Trip, Flat 4B. You name it.
+
+People toss **Drops** in. Everyone has one number:
+
+| You see | Means |
+|---|---|
+| **You're in** | They owe you |
+| **You're out** | You owe |
+| **Even** | Boring. Nothing to do |
+
+**Chip in** is “pay this person some or all of what you owe” — ₹100 now of ₹300 is normal, not a special case.
+
+We stole Tricount’s two tabs (**Activity** / **Balances**) and Niptao’s last tap (open UPI, then mark paid). We refused Splitwise’s “simplify debts,” itemized receipts, and any escrow.
+
+## How it feels
+
+**Add a drop — one screen**
+
+1. Dashboard **Pots** card, or Decision **Split this?**, or **Drop it** inside a pot.
+2. Big amount. Who paid (default you). Who’s in (chips, default everyone). **Equal** or **Dutch**.
+3. Equal: done. Dutch: type each person’s amount; leftover dumps on the payer; live “left to assign” bar like Settings.
+4. Confirm.
+
+That’s it. Category/merchant optional.
+
+**Chip in — one sheet**
+
+Tap the person on Balances → FULL / HALF / custom → UPI (prefilled) or cash. Always dated. Undo if you fat-fingered.
+
+**People**
+
+Pick from phone contacts. No account needed — they sit as a **guest**. Share a WhatsApp/SMS link tied to *that* guest. If they already use Sober.Spend, they hop in and see the same pot. If they sign up later with the same number, history follows them.
+
+**Budget honesty**
+
+If you paid the restaurant ₹1,200, your monthly budget records **your share** (₹300), not the whole bill. Money they chip back to you is not income. Money you chip to them is not a second expense.
+
+## Mental math (the whole model)
+
+A pays ₹1,200 for 4 people equal → A **+900**, others **−300**.  
+B chips in ₹100 → B **−200**, A **+800**.  
+Row written with time of the drop and time of the chip-in.
+
+## What v1 will not have
+
+Item-wise bills, recurring group rent, comments, charts, multi-currency, debt graphs, savings mixed with roommate payback, History → split (that’s v1.1).
+
+## How we build it
+
+11 small PRs, flag-gated so the current app stays shippable:
+
+| PR | What |
+|---|---|
+| 1 | Schema (`0006`) + local SQLite. Extend the old remote split tables; guests + partial pay. |
+| 2 | Balance engine + store + real tests |
+| 3 | Personal budget = my share only |
+| 4 | Sync, invite claim, login promote |
+| 5 | Dumb UI pieces |
+| 6 | Friends / Crews list + dashboard card |
+| 7 | Drop composer + Decision “Split this?” |
+| 8 | Activity / Balances |
+| 9 | Chip in + UPI + undo |
+| 10 | Contacts, invites, join |
+| 11 | Polish + turn the flag on |
+
+## What you locked
+
+- Record my share **on by default**
+- Invite via **share link**
+- 1:1 pot **auto-created on confirm**
+- Shared family phone **claims all unmatched guests** (wrong pot → archive)
+- Profile phone **optional**, with a banner
+
+Design loop: 4 review rounds, 41 issues closed (6 critical, 25 major, 6 minor, 4 nits). Ready to implement from PR 1.
+
+Want me to start building, or walk one flow (dinner with friends / Goa trip / “I only have ₹100”) in more detail first?
+
+## User
+
+get me all your files into the .info folder yk so we dont loose all you efforts , and also please dont not overcomlicate or overdo  things yk focus on Ux and UI
+
+## Assistant
+
+I'll gather the design artifacts into `.info` so nothing is lost, and keep a short UX-first note so the spec stays simple to use.
+
+## Tools
+
+- ListDir: docs
+- ListDir: .info
+- Execute: ls -la "/var/folders/xg/t1503z6168n4yv1zfg0hdxg80000gn/T/grok-501/" 2>/dev/null; ls -la docs/ 2>/dev/null; ls -la HANDOUT.md 2>/dev/null (Find design artifacts still on disk)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/DESIGN.md (1-30)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/docs/pots-design.md (2-21)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT-FEATURE-PLAN.md (1-40)
+
+## Assistant
+
+Saving the full spec in `.info` and adding a short UX/UI brief as the thing we actually build from — not the 1,300-line technical doc.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/constants/theme.ts (1-50)
+- Execute: cp "/var/folders/xg/t1503z6168n4yv1zfg0hdxg80000gn/T/grok-501/grok-design-doc-98b8ef82.md" "/Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/pots-design.md"
+cp "/Users/vishnu_mac/Desktop/room/test/Sober.Spend/HANDOUT.md" "/Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/HANDOUT.md"
+# keep a single home — .info — drop the extra docs copy
+rm -f "/Users/vishnu_mac/Desktop/room/test/Sober.Spend/docs/pots-design.md"
+rmdir "/Users/vishnu_mac/Desktop/room/test/Sober.Spend/docs" 2>/dev/null || true
+ls -la "/Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/"*.md (Copy design artifacts into .info, drop extra docs copy)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/POTS-README.md
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/POTS-UX.md
+
+## Assistant
+
+Everything is in `.info` now. That folder is the home — I dropped the extra `docs/` copy so there’s one place.
+
+**Build from this**
+
+- [`.info/POTS-UX.md`](.info/POTS-UX.md) — five screens, Equal + Dutch, chip-in, locked product calls, copy, visual rules. This is the north star.
+
+**Archive (don’t let it drive UI)**
+
+- [`.info/pots-design.md`](.info/pots-design.md) — full technical spec (schema, sync, guests, PR plan)
+- [`.info/HANDOUT.md`](.info/HANDOUT.md) — app-wide reference
+- [`.info/POTS-README.md`](.info/POTS-README.md) — what’s what
+
+**Left alone (old split drafts, not deleted)**
+
+- `SPLIT-FEATURE-PLAN.md`
+- `split-redesign-plan.md`
+- `SPLIT-FEATURE-DOC.md`
+
+UX rule I wrote into the bible: if it isn’t one of the five surfaces (list, pot, drop, chip-in, join), it waits. No second design system, no wizard, no debt graph.
+
+When you want to start building, we follow `POTS-UX.md` and only open the long spec for schema/sync.
+
+## User
+
+lets build it 
+
+## Assistant
+
+Building Pots from the UX bible: local-first, five surfaces, Equal + Dutch, chip-in. I’ll read the spec and current app patterns, then implement without extra screens or complexity.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/POTS-UX.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.agents/skills/maya-design/SKILL.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/types/index.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.agents/skills/expo-router/SKILL.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.agents/skills/expo-native-ui/SKILL.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.agents/skills/userinterface-wiki/SKILL.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.agents/skills/maya-design/references/motion.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/format.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+
+## Assistant
+
+Implementing a local-first Pots loop: schema and engine first, then the five screens. Sync stays opportunistic later — UX first.
+
+## Tools
+
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/phone.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/pot-engine.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/types/index.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/pot-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/pots/_layout.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/pots-dashboard-card.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/pots/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/pots/new.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/drop-composer.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/drop-composer.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/pots/drop.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/pots/[id]/drop.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/pots/join.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/drop-composer.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/chip-in-sheet.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/pots/[id]/index.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx (2-171)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx (2-121)
+- Search: Nuke|wishlist_items
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/settings.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/settings.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/settings.tsx (169-198)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/pot-store.ts
+- Execute: npx tsc --noEmit (Typecheck Pots implementation)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/HANDOUT.md
+
+## Assistant
+
+Pots is in the app. Local-first, five surfaces, same neo-brutalist UI. `tsc` is clean. This is a native Expo app, so I could not tap through it in a browser — reload the simulator and walk the loop.
+
+### How to use it
+
+1. Dashboard **POTS** card → Friends / Crews.
+2. **+** on Friends → drop composer. Add people from contacts. Equal or Dutch. **Drop it** creates the 1:1 pot named after them.
+3. **+** on Crews → name the pot, then **Drop it** inside.
+4. Pot screen: **Activity** / **Balances**. Tap a person to **Chip in** (FULL / HALF / custom → UPI or cash). Long-press a row to undo.
+5. After a scan, Decision has **Split this?** — pays UPI, then opens the composer. Your budget only gets **your share**. A banner lets you keep the full bill instead.
+
+### What I deliberately skipped (per the UX bible)
+
+- Live hop-in / claim RPCs (invite is a share text for now)
+- Item-wise bills, shares/%, debt graphs, savings mix-in
+
+Reload the app so SQLite creates the new tables. First path to try: Pots → + → pick a contact → ₹1200 Equal → Drop it.
+
+## User
+
+You think all the steps, all the phases, complete that.
+
+## User
+
+complete all the steps, all the phases, and don't wait.
+
+## Assistant
+
+I’ll finish the remaining Pots phases end-to-end—schema/sync, invites, join/claim, profile phone, and polish—without pausing between steps.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/pots-design.md (970-1169)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/pots-design.md (1305-1392)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx (2-81)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts (1-100)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts (1-50)
+- ListDir: src/app/pots
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts (181-268)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/pot-store.ts (1-80)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/package.json
+
+## Assistant
+
+Writing the remote migration and wiring sync, join, and profile so the remaining phases land together.
+
+## Tools
+
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/supabase/migrations/0006_pots.sql
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Execute: supabase db push --yes 2>&1 (Push 0006 pots schema and RPCs to remote)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/supabase/migrations/0006_pots.sql
+- Execute: supabase db push --yes 2>&1 (Retry 0006 after fixing invite_token SQL)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/pot-sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/pot-engine.test.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/pot-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/types/index.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/pot-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/pot-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/pot-store.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/pot-store.ts (381-460)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/pot-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/types/index.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts (211-273)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts (28-52)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/pots/join.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/pots/[id]/index.tsx (71-110)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx (96-185)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/pots/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/pots/[id]/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/invite.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/pot-icons.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/pots/[id]/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/pots/[id]/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/pots/[id]/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/pot-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx (501-540)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/package.json
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/package.json
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/HANDOUT.md
+- Execute: pnpm add -D tsx@^4.20.5 && npx tsc --noEmit && pnpm test (Install tsx, typecheck, run pot-engine tests)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/tsconfig.json
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/pot-engine.test.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/tsconfig.json
+- Execute: npx tsc --noEmit && pnpm test (Re-run typecheck and pot-engine tests)
+- Execute: cp HANDOUT.md .info/HANDOUT.md (Sync HANDOUT into .info archive)
+
+## Assistant
+
+All remaining phases are in. `tsc` is clean. Three pot-engine tests pass. Remote `0006_pots.sql` is on your linked Supabase project.
+
+### What landed
+
+**Cloud (PR 1 + 4)**  
+Guests, invite tokens, nullable payers, claim/join RPCs, RLS, grants (no anon on pot tables). Schema cache reloaded.
+
+**Sync**  
+Login / token refresh / pot-screen focus: push then pull. Signed-in devices share pots. Phone claim after you save a number.
+
+**Invites + hop-in (PR 10)**  
+Invite sends `soberspend://pots/join?token=…&guest=…`. Join peeks the pot name, hop-in if signed in, or sends you to Profile. Pending invite survives sign-in.
+
+**Profile**  
+Optional phone + UPI ID. Banner: “Add your number so pots follow you.”
+
+**Budget honesty (PR 3)**  
+`client_id` / `pot_drop_id` on expenses. After pull, your share is written once.
+
+**Pot screen**  
+Invite link, **More → Archive / Leave**, chip-in + undo still there.
+
+**Tests (PR 2)**  
+`pnpm test` — equal split, Dutch leftover, ₹1,200 + ₹100 chip-in.
+
+Reload the app so SQLite picks up `invite_token` / `client_id`. Signed-in path: Drop a pot → Invite → other account opens the link → Hop in.
+
+That background log is the **first** `tsc` run, which failed on the test file’s Node types. That was already fixed: tests are excluded from `tsc`, and the follow-up `pnpm test` passed all 3 cases. Nothing else to do for that command.
+
+## User
+
+t.
+› Press ? │ show all commands
+iOS Bundled 16150ms node_modules/.pnpm/expo-router@57.0.13_6939ff88e9ac8b478520d6e08359c030/node_modules/expo-router/entry.js (3803 modules)
+ ERROR  [pot-store] loadPots failed: [ReferenceError: Property 'crypto' doesn't exist]
+
+Code: pot-store.ts
+  37 |
+  38 | function newId(): string {
+> 39 |   return crypto.randomUUID();
+     |          ^
+  40 | }
+  41 |
+  42 | function readSetting(key: string): string | null {
+Call Stack
+  newId (src/stores/pot-store.ts:39:10)
+  loadPots (src/stores/pot-store.ts:181:41)
+  useFocusEffect$argument_0 (src/app/index.tsx:119:15)
+
+Code: _layout.tsx
+  57 |     <>
+  58 |       <NavigationBar hidden style="light" />
+> 59 |       <Stack
+     |       ^
+  60 |         screenOptions={{
+  61 |           headerShown: false,
+  62 |           contentStyle: { backgroundColor: Colors.bg },
+Call Stack
+  RootLayout (src/app/_layout.tsx:59:7)
+
+## Assistant
+
+Hermes in this build has no `crypto.randomUUID()`. I’ll add a small ID helper and swap every call so pots can load.
+
+## Tools
+
+- Search: crypto\.randomUUID
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/pot-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/drop-composer.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/id.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/drop-composer.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/pot-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Search: crypto\.randomUUID
+- Search: randomUUID
+
+## Assistant
+
+Hermes on this iOS build does not implement `crypto.randomUUID()`, and `loadPots` called it on first dashboard focus.
+
+Every ID now goes through `src/utils/id.ts`: use `randomUUID` when it exists, otherwise a Math.random UUID. Same change in the pot store, expense store, and drop composer.
+
+Reload the app — the pots card should load without that redbox.
+
+## User
+
+he legacy API from "expo-contacts/legacy".
+See the migration guide: https://docs.expo.dev/guides/sdk-libraries-migration/contacts/
+ ERROR  [Error: Uncaught (in promise, id: 0) Error: Method getContactsAsync imported from "expo-contacts" is deprecated.
+Use the new class-based API from "expo-contacts" or import the legacy API from "expo-contacts/legacy".
+See the migration guide: https://docs.expo.dev/guides/sdk-libraries-migration/contacts/]
+
+Code: drop-composer.tsx
+   98 |       return;
+   99 |     }
+> 100 |     const { data } = await Contacts.getContactsAsync({
+      |                                                     ^
+  101 |       fields: [Contacts.Fields.PhoneNumbers],
+  102 |     });
+  103 |     const rows = data
+Call Stack
+  openContacts (src/components/pots/drop-composer.tsx:100:53)
+
+## Assistant
+
+Contacts is on the new class-based API now. I’ll check Expo 57’s migration guide and update the picker.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/drop-composer.tsx (2-131)
+- WebFetch: https://docs.expo.dev/guides/sdk-libraries-migration/contacts/
+- WebFetch: https://docs.expo.dev/versions/v57.0.0/sdk/contacts/
+- Search: FULL_NAME|export declare enum ContactField
+- Search: ContactField
+- Execute: ls node_modules/expo-contacts/*.d.ts node_modules/expo-contacts/build 2>/dev/null | head -20; rg -l "ContactField" node_modules/expo-contacts --glob '*.d.ts' 2>/dev/null | head (Find expo-contacts type definitions)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/node_modules/expo-contacts/build/index.d.ts (1-7)
+- Search: enum ContactField|FULL_NAME|PHONES
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/node_modules/expo-contacts/build/ContactsModule.d.ts (1-40)
+- Search: requestPermissionsAsync
+
+## Assistant
+
+Switching to Expo’s class-based Contacts API and the native picker — simpler than our custom list, and it matches the current SDK.
+
+## Tools
+
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/drop-composer.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/drop-composer.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/drop-composer.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/drop-composer.tsx
+
+## User
+
+what you seeing 
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/drop-composer.tsx (1-130)
+- Search: Modal|normalizePhone
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/drop-composer.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/pots/drop-composer.tsx
+
+## Assistant
+
+Here’s what I’m seeing:
+
+**The redbox you hit** was Expo SDK 57 killing the old contacts API. `Contacts.getContactsAsync()` is deprecated and now throws. That’s why add-person crashed.
+
+**What’s in the code now:** the drop composer uses the new class API:
+
+- `requestPermissionsAsync()`
+- `Contact.presentPicker()` — the **system** contact picker, not our custom list
+- `contact.getDetails([FULL_NAME, PHONES])` for name + number
+
+That’s the right Expo 57 path, and it matches “contacts is a picker, not a screen.”
+
+**Earlier crash** (`crypto.randomUUID`) is already fixed with `src/utils/id.ts`.
+
+Reload the app, tap **+** on Who’s in, allow contacts, pick someone. You should get the iOS contact sheet, not that deprecation error.
+
+## User
+
+hey i want you to go and revert back everything which we did of the port and spliting , remove it okay 
+
+## Assistant
+
+I'll strip every Pots/split surface from the app and put the existing screens back to how they were before that work.
+
+## Tools
+
+- Execute: git status --short && echo '---' && git log --oneline -8 (See changed files vs last commit)
+
+## User
+
+play it properly first and then and if possible with git check that too
+
+## Assistant
+
+I’ll use git to separate Pots/split work from the earlier real fixes, then revert only the split/Pots pieces.
+
+## Tools
+
+- Execute: git diff --stat HEAD && echo '==== UNTRACKED POTS ===' && git ls-files --others --exclude-standard | grep -E 'pot|split|invite|phone\.ts|id\.ts|POTS' || true (Diff stats vs HEAD and list pots-related untracked files)
+- Search: pot|splitThis|PotsDashboard|pot-store|pot-sync|invite|SELF_MEMBER
+- Execute: git diff HEAD -- src/app/_layout.tsx src/app/index.tsx src/app/decision.tsx src/stores/auth-store.ts src/stores/expense-store.ts src/types/index.ts db/schema.ts src/utils/sync.ts src/app/settings.tsx package.json tsconfig.json (Inspect mixed diffs to isolate pots-only hunks)
+- Execute: git diff HEAD -- src/app/index.tsx src/app/settings.tsx src/stores/auth-store.ts src/app/profile.tsx | head -200 (Inspect remaining mixed file diffs for pots hunks)
+- Execute: rm -rf src/app/pots src/components/pots src/stores/pot-store.ts \
+  src/utils/id.ts src/utils/invite.ts src/utils/phone.ts \
+  src/utils/pot-engine.ts src/utils/pot-engine.test.ts src/utils/pot-icons.ts src/utils/pot-sync.ts \
+  supabase/migrations/0006_pots.sql \
+  .info/POTS-UX.md .info/POTS-README.md .info/pots-design.md
+
+git checkout HEAD -- src/app/profile.tsx tsconfig.json
+
+echo 'deleted pots files and restored profile + tsconfig from HEAD' (Delete pots files; restore profile and tsconfig from git HEAD)
+
+## User
+
+continue
+
+## Assistant
+
+Continuing the revert: I’ll strip Pots/split from the remaining mixed files and leave the earlier app fixes in place.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts (21-50)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/types/index.ts (1-100)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts (96-133)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/package.json
+- Search: PotsDashboard|loadPots|splitThis|usePotStore|pot_
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx (26-125)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx (311-360)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts (81-260)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts (28-47)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/HANDOUT.md (196-215)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+
+## User
+
+continue
+
+## Assistant
+
+Still stripping Pots from decision, stores, schema, sync, settings, and HANDOUT. Then I’ll typecheck so nothing leftover still imports it.
+
+## Tools
+
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/types/index.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/package.json
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/package.json
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/HANDOUT.md
+- Search: splitToggle|splitBox
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts (86-163)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx (561-600)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts (201-186)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/settings.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/settings.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts (146-186)
+- Search: pot|client_id|syncPots|newId|splitThis
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts (1-30)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts (28-47)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts (116-145)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts (201-270)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/sync.ts
+- Search: pot-store|pots/|PotsDashboard|pot-sync|pot-engine|invite\.ts|phone\.ts|utils/id
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/types/index.ts (1-35)
+- Execute: ls src/app/pots 2>/dev/null; ls src/components/pots 2>/dev/null; ls src/utils/pot* src/stores/pot* src/utils/id.ts src/utils/phone.ts src/utils/invite.ts 2>/dev/null
+cp HANDOUT.md .info/HANDOUT.md 2>/dev/null
+npx tsc --noEmit
+echo '--- git status ---'
+git status --short (Verify pots files gone, typecheck, show git status)
+
+## Assistant
+
+Pots/split is out of the app. I used git against `HEAD` so earlier real work stayed (icons, unique categories, sync, UPI deep link, back-button fallback). `tsc` is clean.
+
+**Removed**
+- `src/app/pots/`, `src/components/pots/`, pot store/engine/sync/invite/phone/id
+- Dashboard card, Decision “Split this?”, join deep links, profile phone/VPA
+- Local SQLite pot tables from `db/schema.ts`
+- `0006_pots.sql` from the repo (that migration is already applied on remote Supabase; unused now)
+
+**Left in place (not pots)**
+- `getIcon`, auth/sync, budget/expense store fixes, HANDOUT, `0002`–`0005` migrations
+
+Reload the app. If a leftover `pots` table exists on device, Settings → Nuke Everything (dev) or a reinstall clears it. The product is back to personal scan → decide → pay.
+
+## User
+
+i want you to goo and see our pot things which we made the plan for it actually , and what we wanted to do was a simple splitting thiings but not loosing any features of it , and after i saw the exectuaation with the pot technique i reaalised it too much , too confusing and too much for that we want a sober splitting featuere , i want you to see the plan and remove the pot technique and make it with normal logic system okay make a proper plan for it yk , proper things , better techniuq , remove the pot things fully
+
+## Assistant
+
+I’ll read the original split/pots plans and the current app, then rewrite a simple split plan—same capabilities, no pot metaphor.
+
+## Tools
+
+- ListDir: .info
+- Search: pot|split
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT-FEATURE-DOC.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT-FEATURE-PLAN.md (1-120)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/split-redesign-plan.md (1-80)
+
+## Assistant
+
+Pots added a new language for a simple ledger. I’ll rewrite the plan in normal split words—groups, friends, equal/Dutch, pay back—without dropping any of the real features.
+
+## Tools
+
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT.md
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT-README.md
+
+## Assistant
+
+Pots were the same ledger wearing a costume. **Split.md** is the new plan: normal words, same features, less head noise. It’s in [`.info/SPLIT.md`](.info/SPLIT.md).
+
+## What was wrong
+
+We asked people to learn *pot / drop / chip in / you’re in*. They already know *group, expense, you owe, pay back*. The math never needed a pot.
+
+## What we still do
+
+Friends **and** groups. Equal **and** Dutch. Partial pay (₹300 due, ₹100 now). Contacts. Sync if they use Sober.Spend. Dates on expenses and repayments. Only **your share** hits the budget. UPI or cash.
+
+## What we don’t do
+
+No pot object. No “chip in.” No hop in. No debt graph. No item-wise bills. No mixing payback with savings.
+
+## The actual logic
+
+A **group** is a list of people. A friend is a group of two, named after them.
+
+You pay ₹1,200 for four, equal → budget ₹300, three people owe you ₹300 each.  
+Riya sends ₹100 → she owes ₹200. That’s a payment row, timestamped. Done.
+
+Balance is computed from expenses + payments. Nothing is stored as a running “pot.”
+
+## Five screens
+
+1. Split list — Groups | Friends  
+2. Group — Activity | Balances  
+3. Add expense — amount, who paid (default you), who’s in, Equal | Dutch  
+4. Pay back — FULL / HALF / custom → UPI or cash  
+5. Join — only if they opened a link  
+
+Decision still has **Split this?** after pay. App language is Sober, not a new dialect.
+
+Build order in the doc is engine → add expense → list/detail → pay back → contacts → sync last.
+
+Want me to start building from this, not from pots?
+
+## User
+
+thiink of qr code sharing and adding too yk , like scan to add people directly yk 
+
+## Assistant
+
+I’ll fold QR share/scan into the split plan: reuse the existing camera, keep it as join/add-people, no extra jargon.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/upi-parser.ts (1-80)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/scan.tsx (51-120)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT.md
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT.md
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT.md
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT.md
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT.md
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT.md
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT.md
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT.md
+
+## Assistant
+
+QR is now part of the split plan, not a side quest. Still no pots. Written into [`.info/SPLIT.md`](.info/SPLIT.md).
+
+**Two codes, that’s it.**
+
+| Show this | They scan it | What happens |
+|-----------|----------------|--------------|
+| **Group QR** | Join this group | Same as the WhatsApp link, just a picture |
+| **Me QR** | That’s you | You get added — name + phone, no typing |
+
+**Where it lives**
+
+- Group → **Show QR** (sheet: big code + share).  
+- Who’s in **+** → `From contacts` or `Scan QR`.  
+- The **existing pay camera** already reads QR. If it’s `upi://` → pay. If it’s `soberspend://split/…` → join or add that person. No second scanner app.
+
+**Table flow**
+
+You paid dinner. Open Who’s in → Scan → they hold up **My QR** → chip appears. Split it.
+
+Or you flash the **group** code, they scan with Sober.Spend, they’re in the group.
+
+Same token as the link. Rotate it if it leaked. Guest Me-QR still works with name + phone if they’re not signed in.
+
+Want this built next with the rest of Split, still without pots?
+
+## User
+
+okay lets build it lfg 
+
+## Assistant
+
+Building Split from `.info/SPLIT.md`: groups/friends, equal/Dutch, pay back, contacts, and QR — no pot language. Checking the app and putting the engine in first.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/package.json
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/types/index.ts (1-30)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts (1-50)
+- Execute: ls node_modules/react-native-svg/package.json 2>/dev/null; ls node_modules/react-native-qrcode-svg 2>/dev/null (Check if QR/SVG packages already installed)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx (2-31)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx (26-125)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/settings.tsx (169-198)
+- Execute: ls node_modules/react-native-svg/package.json 2>/dev/null || find node_modules -name 'react-native-svg' -maxdepth 3 -type d 2>/dev/null | head (Find react-native-svg in node_modules)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/id.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/phone.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/split-qr.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/split-engine.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/types/index.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/qr-block.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/package.json
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/_layout.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/split-dashboard-card.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/new.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/join.tsx
+
+## Assistant
+
+I'll pick up Split from `.info/SPLIT.md` and finish the remaining screens, wiring, and install. First I'm checking what's already in the tree so we don't rebuild what's done.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.info/SPLIT.md
+- ListDir: src
+- ListDir: src/app/split
+- ListDir: src/components/split
+
+## Assistant
+
+Core split files are in place. Next I’ll read the store, existing screens, and design skills so the remaining UI matches the app.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/types/index.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/split-engine.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/split-qr.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.agents/skills/maya-design/SKILL.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.agents/skills/userinterface-wiki/SKILL.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/new.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/join.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/_layout.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/qr-block.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/split-dashboard-card.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/constants/theme.ts
+- Search: split
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/scan.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/settings.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts (81-260)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/package.json
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/ui/neo-button.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/format.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/phone.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/id.ts
+- Search: confirmPendingTransaction|addExpense
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/app.json
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.agents/skills/maya-design/references/tokens.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.agents/skills/maya-design/references/motion.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/expense-store.ts
+- Search: presentPicker|getDetails
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/upi-parser.ts (1-80)
+- ListDir: node_modules/qrcode
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts (1-50)
+- Search: Linking\.createURL|useURL|getInitialURL
+- WebSearch: expo-contacts SDK 57 Contact.presentPicker getDetails API
+- ListDir: node_modules/expo-contacts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/upi-parser.ts (81-168)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/ui/neo-card.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/node_modules/expo-contacts/src/index.ts (1-13)
+- Search: presentPicker|ContactField
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/wishlist.tsx (1-80)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/node_modules/expo-contacts/src/types/Contact.ts (1-80)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/node_modules/expo-contacts/src/types/Contact.types.ts (1-80)
+- Search: presentPicker|ContactField
+- Search: presentPicker
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/node_modules/expo-contacts/src/types/Contact.props.ts (1-40)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/node_modules/expo-contacts/src/ContactsModule.ts (1-40)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/node_modules/expo-contacts/src/types/Permissions.ts (1-12)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/node_modules/expo-contacts/src/types/Contact.ts (81-120)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.agents/skills/userinterface-wiki/rules/timing-under-300ms.md
+- Search: requestPermissions
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/db/schema.ts (1-30)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/ui/neo-back-button.tsx (1-40)
+- Search: export const db
+
+## Assistant
+
+Foundation is in place. Next I’ll finish the store, then the remaining screens and wiring — group, expense, pay back, scan, and Decision.
+
+## Tools
+
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/split-engine.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/contacts.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/add-person-sheet.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/types/index.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts
+
+## Assistant
+
+Store is updated. Writing the expense and group screens next, then wiring scan, Decision, and the dashboard.
+
+## Tools
+
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/scan.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/scan.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/scan.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/scan.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/scan.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/scan.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/settings.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/join.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/join.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/scan.tsx (1-50)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx (2-101)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx (1-20)
+- Search: from '@/stores/split-store'|from '@/utils/split
+- Execute: npx tsc --noEmit (Typecheck the full TypeScript project)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx (86-105)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Execute: npx tsc --noEmit (Re-run TypeScript check after fix)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/package.json
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx (71-120)
+- Execute: npx tsc --noEmit (Final TypeScript check after navigation fix)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/contacts.ts
+
+## Assistant
+
+Split is in, using the plan in `.info/SPLIT.md` — groups and friends, not pots.
+
+**What you can do now**
+
+- Dashboard **Split** card → list (Groups | Friends)
+- **+** → new group, a contact, or scan a QR
+- Group: **Activity** / **Balances**, add expense, pay back (FULL / HALF / custom, UPI or cash)
+- Expense: amount, who paid (default You), who’s in, Equal or Dutch. Only **your share** hits the budget
+- Decision: **Split this?** — UPI still goes out, the full bill is not written until you save the split. If you bounce: `You paid ₹X. Split it or keep the full bill.`
+- Camera reads UPI, group join (`soberspend://split/join?t=`), and Me QR
+- Profile **My QR** (name + phone). Group overflow: Show QR / Share / New code
+- Settings nuke also wipes `split_*` tables
+
+Words on screen stay Split / Group / Friend / You owe / They owe / Pay back. No pot language.
+
+**Not in this pass (same as the plan):** cloud sync and live join from another phone. Group QR on the same device opens the group; on another phone you’ll see `That code’s dead. Ask again.` until they scan your Me QR instead.
+
+Reload the app so SQLite creates the new tables. Typecheck is clean. This is native Expo, so I couldn’t click through it in a browser — run it on a device/simulator and walk: dashboard card → new group → expense → balances → pay back, plus Decision **Split this?** and a Me QR scan.
+
+## User
+
+[Image #1] fix this 
+
+## Assistant
+
+The group card is shrink-wrapping because `flexDirection: 'row'` is on NeoCard’s outer wrapper, not the inner content. I’ll move the row layout inside and stretch the cards full width.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx (101-150)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/ui/neo-card.tsx
+- Search: NeoCard.*style=\{styles\.row\}
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (186-230)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/ui/neo-card.tsx
+- Search: row:
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx (116-145)
+- Search: ^\s+row:
+- Search: row
+- Search: styles\.row
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (331-370)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (431-480)
+
+## Assistant
+
+The **Flat** row was shrink-wrapping because `flexDirection: 'row'` was on NeoCard’s outer wrapper, so the icon, name, and amount stacked in a tiny column on the left.
+
+That layout now lives **inside** the card, and the row stretches full width — icon, **Flat**, Settled, and the amount on one line, same as the rest of the app. Reload and the list should look right.
+
+## User
+
+[Image #1] [Image #2] remove the qr we do direct contacts , and fix the designs and screen
+
+## Assistant
+
+The add-people sheet still offers Scan QR, and those balance rows are still shrinking. I’ll drop QR and go straight to contacts, then rebuild the rows so they span the screen.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/dashboard/transaction-item.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (1-250)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx (1-160)
+- Search: AddPersonSheet|setScanIntent|Scan QR|mode=split|pickContact
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx (201-370)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx (149-238)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (249-338)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx (91-150)
+
+## Assistant
+
+I’ll drop QR from add-people (contacts only) and replace those shrink-wrapped NeoCards with full-width rows like the rest of the app.
+
+## Tools
+
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/split-row.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx (2-51)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx (2-41)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+
+## User
+
+ [Image #1] auto calulate other if i do add it in one 
+
+## Assistant
+
+Dutch should fill the other people when you type one amount. I’ll finish the contacts-only / full-width row work from before, then add that auto-calc.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx (1-80)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx (2-51)
+- Search: AddPersonSheet|setScanIntent|QrBlock|meUrl|addOpen
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx (141-220)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/split-engine.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx (251-430)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (2-51)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx (2-141)
+- Search: Animated|FadeIn
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/split-engine.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx (109-188)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Execute: rm -f src/components/split/add-person-sheet.tsx && npx tsc --noEmit (Remove add-person sheet and typecheck)
+- Search: AddPersonSheet|setScanIntent
+
+## Assistant
+
+Dutch now fills the others for you.
+
+Type an amount on one person — say Kate ₹100 on a ₹1,000 bill with 4 people — and the remaining ₹900 splits across You, Daniel, and John (₹300 each). Change a second person and the rest rebalance. Clear a field and they go back into the auto pool.
+
+Switching to Dutch starts from an even split. If the numbers go over the total, save stays blocked.
+
+Also finished from before: add-people is contacts only (no Scan QR sheet), and group/list rows are full-width like the rest of the app. Reload and try typing one Dutch amount.
+
+## User
+
+have you handled the case of scanning a UPI qr to pay where the amount was not set in the QR ?
+
+## Assistant
+
+I'll check the scan → pay path for UPI QRs that omit an amount, and whether we prompt for one before paying.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/upi-parser.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/scan.tsx (1-100)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx (2-161)
+- Search: amount
+- Search: amount|am=
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx (156-205)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx (301-380)
+
+## Assistant
+
+It isn’t handled — a QR with no `am` becomes ₹0, still lets you pay, and writes a zero expense. I’ll make Decision ask for the amount before Pay.
+
+## Tools
+
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+
+## User
+
+continue
+
+## Assistant
+
+I’ll finish the no-amount UPI path on Decision: editable amount, budget based on what you type, and Pay blocked until there’s a number.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx (1-180)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/upi-parser.ts (116-140)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx (321-420)
+- Search: !isUnknown
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/upi-parser.ts
+- Execute: npx tsc --noEmit (Typecheck after decision amount input)
+
+## Assistant
+
+It wasn’t handled before. A shop QR with no `am` became ₹0, Pay still worked, and we logged a zero expense.
+
+That’s fixed on **Think Before You Pay**:
+
+- Amount is an editable ₹ field (pre-filled only if the QR had one)
+- No amount in the QR → empty field, focused, hint: `QR had no amount. Type it.`
+- Budget impact updates as you type
+- **Pay** stays off until the amount is &gt; 0
+- UPI opens with the number you entered; that same number is what gets recorded (or sent into Split)
+
+Scan a sticker QR, type the amount, then pay.
+
+## User
+
+[Image #1] [Image #2] fix layout and why there is a - icon
+
+## Assistant
+
+The extra “Settled” and the “—” on even rows are coming from the list. I’ll drop the dash, stop repeating the label, and fix the Activity/Balances tabs so they don’t overlap.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (141-270)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/split-row.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (401-480)
+- Search: '—'
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (361-410)
+- Search: label.tone === 'settled'
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/split-row.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/split-row.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+
+## Assistant
+
+The **—** was a placeholder for “no money due.” Settled people don’t owe anything, so that dash is gone. You’ll just see the name and **Settled**.
+
+Layout:
+- **Settled** was printed twice (big title + the line under it). It’s only the title now.
+- Activity / Balances have full width, spacing, and a bit more height so they don’t sit on top of each other.
+
+Reload the group screen and those rows should look clean.
+
+## User
+
+[Image #1] imporve this people listing sections yk 
+
+## Assistant
+
+Those wrapping name chips are hard to scan. I’ll turn Paid by and Who’s in into a compact people list—avatar, name, and a clear selected state.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.agents/skills/maya-design/references/components.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx (201-320)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx (431-531)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/person-pick.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/person-pick.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/person-pick.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/person-pick.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/person-pick.tsx
+- Execute: npx tsc --noEmit (Typecheck person list UI)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/person-pick.tsx (69-118)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/person-pick.tsx (146-169)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/person-pick.tsx
+
+## Assistant
+
+Paid by and Who’s in are proper people lists now, not wrapping pills.
+
+- **Paid by** — one person per row, avatar + full name, radio on the right  
+- **Who’s in** — same list, checkboxes; guests get a remove control  
+- **Add people** sits at the bottom and still opens contacts  
+
+Long names like Daniel Higgins Jr. stay on one line instead of blowing the chip layout. Reload the expense screen and it should read as a contact list.
+
+## User
+
+[Image #1] imporve this card desgn very bad actually 
+
+## Assistant
+
+The pay-back sheet is cramped and the custom field is messy. I’ll rebuild it: big amount, cleaner FULL/HALF, a proper ₹ input, and two clear actions.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (301-491)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/.agents/skills/maya-design/references/tokens.md
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (269-318)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/constants/theme.ts (46-75)
+
+## User
+
+[Image #1] tooooooooo muchhhh badddd UXXXX and UIIII , UXXX should be nicee brooo fix this , be creatve and artistice bitch
+
+## Assistant
+
+Two identical people lists is too much. I’ll merge Paid by and Who’s in into one tile grid, and rebuild the pay-back sheet so it isn’t a cramped pile of buttons.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx (2-51)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx (229-328)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (251-280)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/person-tiles.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/pay-back-sheet.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (2-21)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (274-368)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Execute: npx tsc --noEmit (Typecheck tiles and pay-back sheet)
+
+## Assistant
+
+Paid by and Who’s in were the same list twice. That’s gone.
+
+**People** is one grid of tiles now:
+- Tap a person to include or drop them
+- Hold to mark who paid (they get the pink **PAID** badge)
+- First names, color avatars, dimmed when they’re out
+- **Add** is a dashed tile
+- Guests have a small ×
+
+**Pay back** is a proper bottom sheet: face + name, big ₹, Full / Half cards, a real custom field, then UPI or cash as full-width actions.
+
+Reload expense and tap a balance row to see both.
+
+## User
+
+[Image #1] [Image #2] i dont think the math is right and i added a user after 1st expence too 
+
+## Assistant
+
+The balances list is treating every person as if they owe you your whole net, so three people each show ₹350. I’ll check how shares are stored when someone is added after an expense, then show each person’s real group balance.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/split-engine.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (181-230)
+- Search: addMember|inMemberIds|shareMap
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/split-engine.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Execute: npx tsc --noEmit (Typecheck balance copy change)
+
+## Assistant
+
+The ledger math was fine. The **Balances** screen was wrong.
+
+It showed each person as owing you **your whole net**. So if you’re owed ₹350, Daniel, John, and Anna each showed ₹350 — that looks like ₹1,050. Kate looked **Settled** because she’s also owed money, even though the group still owes her.
+
+**Now each row is that person’s own balance:**
+- **Owes ₹X** — they’re in the red
+- **Is owed ₹X** — they’re in the black  
+- **Settled** — they’re even
+
+Someone you add **after** a bill is not dropped onto old expenses. They only pick up bills they’re actually in. Anna should only show her share of the ₹1,000, not a slice of the ₹2,000.
+
+The big ₹350 at the top is still **your** net with the group. Tap a person to pay back — that sheet still caps at what you two can actually settle. Reload Balances and the numbers should add up.
+
+The ledger math was fine. The **screen** was lying.
+
+It showed every person as owing you **your whole net**. You were owed ₹350, so Daniel, John, and Anna each showed ₹350 — as if they all owed you the same ₹350. Kate looked **Settled** only because you were both owed money, not because she’s even with the group.
+
+Balances now show **that person’s own net**:
+
+- **Owes ₹X** — they’re in the red  
+- **Is owed ₹X** — the group owes them  
+- **Settled** — they’re actually at zero  
+
+Someone you add **after** a bill is not dropped onto that old bill. They only show up on expenses they’re in. So Anna on the ₹2,000 (before she existed) stays out of it; she only takes a share of later ones.
+
+The big ₹350 at the top is still **your** net (they owe you, in total). Tap someone to pay back and that sheet still caps at what you can actually settle with that person.
+
+Reload Balances — the numbers should add up: everyone’s balances together sit near zero.
+
+## User
+
+[Image #1] please give me the old chip style selectors but make them better okay please i love you 
+
+## Assistant
+
+I’ll bring back the chip pickers — avatar plus first name, one line, no wrapping mess — for Paid by and Who’s in.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx (231-280)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/person-pick.tsx (1-90)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/person-chips.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/person-chips.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/person-chips.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Search: peopleTiles|peopleBase
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx (146-175)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Execute: npx tsc --noEmit (Typecheck chip selector restore)
+
+## Assistant
+
+Chips are back — just tighter.
+
+**Paid by** and **Who’s in** are pill rows again, but each chip is `[avatar] first name` so “Daniel Higgins Jr.” stays **Daniel** on one line. Selected fills pink, unselected stays the dark pill, **+** still adds from contacts, guests get a small ×.
+
+Same idea you liked, less wrapping chaos. Reload the expense screen.
+
+## User
+
+[Image #1] remove add person after a group was made
+
+## Tools
+
+- Search: Add people|addPeople|addMember
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (216-245)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx (249-303)
+
+## Assistant
+
+I'll drop **Add people** on the group screen, and hide the + on expenses once that group already exists.
+
+## Tools
+
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/expense.tsx
+- Search: Plus|pickContact|addMember
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (37-56)
+
+## Assistant
+
+**Add people** is gone on the group screen.
+
+If the group already exists, the expense **+** is gone too — you only toggle who’s in from the people already in the group. The + still shows when you’re starting a brand-new split from contacts.
+
+## User
+
+make 2 btns in group delete and inactive okay 
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (1-80)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts (149-188)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (131-250)
+- Search: is_active|isActive
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts (1-30)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts (426-465)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx (301-340)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/split-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/[id].tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx (101-140)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+
+## Assistant
+
+The group screen now has two buttons:
+
+- **Inactive** — hides it from the main list (still there, labeled Inactive, tap to open and turn **Active** again). Add expense is off while it’s inactive.
+- **Delete** — asks first, then removes the group and its activity. That’s gone.
+
+Both sit under Activity / Balances. Reload a group and you’ll see them.
+
+## User
+
+[Image #1] why this is empty if i already have people in one group , and why they are not showun here and there profile and i cann add a personal expecnce directly to the profile yk 
+
+## Assistant
+
+Friends is empty because it only lists 1:1 groups, not people who are already in a group. I’ll turn Friends into those people’s profiles and let you add a 1:1 expense from there.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/phone.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/split-row.tsx (1-40)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/utils/split-people.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/person.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Execute: npx tsc --noEmit (Typecheck friends list and person profile)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Execute: npx tsc --noEmit (Re-run typecheck after amountColor fix)
+
+## Assistant
+
+Friends was empty because it only listed **1:1 friend groups**, not people already in **Flat**.
+
+**Friends** is now everyone you’ve split with. Kate, Daniel, John, Anna from Flat will show up there.
+
+Tap someone → **their profile** (avatar, name, phone, groups they’re in). **Add expense** is a 1:1 between you two — it doesn’t go on the group bill.
+
+Reload Split → Friends.
+
+## User
+
+[Image #1] keep everything in the signup and use can edit afterword tooo in there profile edit page 
+
+## User
+
+and split is a online feature ok
+
+## Assistant
+
+I'll fold name and phone into signup, add a profile edit screen for later, and treat Split as signed-in only.
+
+## Tools
+
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx (1-160)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/split-dashboard-card.tsx (1-50)
+- Search: signUpWithEmail|profiles|display_name
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/supabase/migrations/0002_profiles.sql
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx (156-285)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Search: phone
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx (281-360)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/supabase/migrations/0006_profiles_phone.sql
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/stores/auth-store.ts
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/edit-profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/_layout.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx (51-75)
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx (331-360)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/split/index.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/split-dashboard-card.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/split-dashboard-card.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/split-dashboard-card.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Search: useAuthStore
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/decision.tsx
+- Read: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/split-dashboard-card.tsx (51-80)
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/components/split/split-dashboard-card.tsx
+- Edit: /Users/vishnu_mac/Desktop/room/test/Sober.Spend/src/app/profile.tsx
+- Execute: npx tsc --noEmit (Typecheck auth, edit-profile, split gate)
+
+## Assistant
+
+Name and phone now live on **Create account**, not a separate “For splits” card. After you’re in, **Edit profile** is on the Profile screen so you can change them anytime.
+
+Split is **online**:
+- Dashboard card says sign in if you’re logged out
+- Opening Split without an account takes you to Sign in
+- **Split this?** on a payment only shows when you’re signed in
+
+Signup copy: *Split is online. Name and phone so friends can find you.*
+
+Apply the new `0006_profiles_phone.sql` migration on Supabase so phone can save on the profile row.
+
+## User
+
+[Image #1] make delete and inactive a top incon like share okay

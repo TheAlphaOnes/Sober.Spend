@@ -1,7 +1,7 @@
 import { Borders, Colors, Fonts, FontSizes, Spacing } from '@/constants/theme';
 import type { Category, Expense } from '@/types';
 import { formatCurrency, formatDate } from '@/utils/format';
-import { Car, Circle, CircleEllipsis, Film, ShoppingBag, Utensils, Zap } from 'lucide-react-native';
+import { getIcon } from '@/utils/icons';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -10,17 +10,8 @@ interface TransactionItemProps {
   category?: Category;
 }
 
-const iconMap: Record<string, typeof Utensils> = {
-  utensils: Utensils,
-  car: Car,
-  'shopping-bag': ShoppingBag,
-  film: Film,
-  zap: Zap,
-  'circle-ellipsis': CircleEllipsis,
-};
-
 export function TransactionItem({ expense, category }: TransactionItemProps) {
-  const LucideIcon = category ? (iconMap[category.icon] || Circle) : Circle;
+  const LucideIcon = getIcon(category?.icon ?? '');
 
   return (
     <View style={styles.container}>

@@ -7,11 +7,10 @@ import { useBudgetStore } from '@/stores/budget-store';
 import { useWishlistStore } from '@/stores/wishlist-store';
 import type { WishlistItem } from '@/types';
 import { formatCurrency, sanitizeNumericInput } from '@/utils/format';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import {
   Check,
-  CircleEllipsis,
   ExternalLink,
   Plus,
   ShoppingBag,
@@ -37,7 +36,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function WishlistScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
 
   const { savingsBalance, monthlySavingsTarget, monthlySavingsDeposited } = useBudgetStore();
   const { items, buckets, loadWishlist, addItem, buyItem, removeItem } =

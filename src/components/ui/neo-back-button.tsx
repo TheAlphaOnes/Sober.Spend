@@ -54,9 +54,13 @@ export function NeoBackButton({
   const handlePress = () => {
     if (onPress) {
       onPress();
-    } else {
-      router.back();
+      return;
     }
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/');
   };
 
   const boxSize = size + Spacing.md;

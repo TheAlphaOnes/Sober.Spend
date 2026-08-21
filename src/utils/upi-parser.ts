@@ -126,8 +126,10 @@ export function buildUPIDeepLink(
   const params = new URLSearchParams({
     pa: vpa,
     pn: name,
-    am: amount.toFixed(2),
   });
+  if (amount > 0) {
+    params.set('am', amount.toFixed(2));
+  }
   if (note) {
     params.set('tn', note);
   }

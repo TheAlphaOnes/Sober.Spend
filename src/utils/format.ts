@@ -27,6 +27,17 @@ export function formatDate(isoString: string): string {
 }
 
 /**
+ * Format an ISO date string to a readable date and time.
+ * e.g. "Today, 4:33 PM"
+ */
+export function formatDateTime(isoString: string): string {
+  const dateStr = formatDate(isoString);
+  const date = new Date(isoString);
+  const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  return `${dateStr}, ${timeStr}`;
+}
+
+/**
  * Format percentage with % suffix.
  */
 export function formatPercent(value: number): string {

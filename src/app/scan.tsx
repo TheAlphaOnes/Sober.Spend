@@ -1,16 +1,10 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  Car,
-  CircleEllipsis,
-  Film,
   QrCode,
-  ShoppingBag,
-  Utensils,
-  Zap,
 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -30,23 +24,20 @@ import { Borders, Colors, Fonts, FontSizes, Radii, Spacing } from '@/constants/t
 import { useBudgetStore } from '@/stores/budget-store';
 import { useExpenseStore } from '@/stores/expense-store';
 import type { CategoryId } from '@/types';
+import { useSplitStore } from '@/stores/split-store';
 import { parseUPIString, upiToPendingTransaction } from '@/utils/upi-parser';
 import { sanitizeNumericInput } from '@/utils/format';
-
-const iconMap: Record<string, typeof Utensils> = {
-  utensils: Utensils,
-  car: Car,
-  'shopping-bag': ShoppingBag,
-  film: Film,
-  zap: Zap,
-  'circle-ellipsis': CircleEllipsis,
-};
+import { getIcon } from '@/utils/icons';
+import { parseSplitQR } from '@/utils/split-qr';
 
 export default function ScanScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const splitMode = mode === 'split';
   const setPending = useExpenseStore((s) => s.setPendingTransaction);
   const categories = useBudgetStore((s) => s.categories);
+  const { scanIntent, setScanIntent, setPendingPerson, addMember } = useSplitStore();
 
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
@@ -63,10 +54,40 @@ export default function ScanScreen() {
     }
   }, [permission, requestPermission]);
 
+  useFocusEffect(
+    useCallback(() => {
+      setScanned(false);
+    }, []),
+  );
+
   const handleScanned = (data: string) => {
     if (scanned) return;
     setScanned(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    const split = parseSplitQR(data);
+    if (split?.type === 'join') {
+      setScanIntent(null);
+      router.replace(`/split/join?t=${encodeURIComponent(split.token)}`);
+      return;
+    }
+    if (split?.type === 'me') {
+      const person = { name: split.name, phone: split.phone, userId: split.userId };
+      const intent = scanIntent;
+      setScanIntent(null);
+      if (intent?.kind === 'group') {
+        addMember(intent.groupId, person.name, person.phone, person.userId);
+        router.back();
+        return;
+      }
+      setPendingPerson(person);
+      if (intent?.kind === 'expense') {
+        router.back();
+        return;
+      }
+      router.replace('/split/expense');
+      return;
+    }
 
     const upiData = parseUPIString(data);
     if (upiData) {
@@ -76,7 +97,7 @@ export default function ScanScreen() {
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setScanned(false);
-      setShowManual(true);
+      if (!splitMode) setShowManual(true);
     }
   };
 
@@ -115,7 +136,9 @@ export default function ScanScreen() {
         {/* Scan target frame — centered */}
         <View style={styles.scanTargetWrapper} pointerEvents="none">
           <View style={styles.scanTarget} />
-          <Text style={styles.scanHint}>Put the QR here, we got you</Text>
+          <Text style={styles.scanHint}>
+            {splitMode ? 'Scan their QR' : 'Put the QR here, we got you'}
+          </Text>
         </View>
 
         {/* Bottom controls */}
@@ -182,7 +205,7 @@ export default function ScanScreen() {
           <View style={styles.chipGrid}>
             {categories.map((cat) => {
               const isSelected = categoryName === cat.name;
-              const LucideIcon = iconMap[cat.icon] || CircleEllipsis;
+              const LucideIcon = getIcon(cat.icon);
               return (
                 <Pressable
                   key={cat.id}

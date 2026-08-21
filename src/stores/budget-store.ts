@@ -1,9 +1,10 @@
-import { eq, gte, lt } from 'drizzle-orm';
+import { eq, gte } from 'drizzle-orm';
 import { create } from 'zustand';
 
 import { db, categories as categoriesTable, expenses as expensesTable, settings } from '@/db/schema';
 import { DEFAULT_CATEGORIES, DEFAULT_MONTHLY_BUDGET } from '@/constants/categories';
 import type { Category } from '@/types';
+import { schedulePush } from '@/utils/sync';
 
 const SETTINGS_KEYS = {
   monthlyBudget: 'monthly_budget',
@@ -217,11 +218,13 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
   setMonthlyBudget: (amount) => {
     writeSetting(SETTINGS_KEYS.monthlyBudget, amount.toString());
     set({ monthlyBudget: amount });
+    schedulePush();
   },
 
   setMonthlySavingsTarget: (amount) => {
     writeSetting(SETTINGS_KEYS.monthlySavingsTarget, amount.toString());
     set({ monthlySavingsTarget: amount });
+    schedulePush();
   },
 
   setCategoryLimit: (categoryId, limit) => {
@@ -239,6 +242,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
         cat.id === categoryId ? { ...cat, budgetLimit: limit } : cat,
       ),
     });
+    schedulePush();
   },
 
   addCategory: (data) => {
@@ -259,6 +263,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     }
 
     set({ categories: loadCategoriesFromDB() });
+    schedulePush();
   },
 
   deleteCategory: (categoryId) => {
@@ -273,6 +278,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     set({
       categories: get().categories.filter((cat) => cat.id !== categoryId),
     });
+    schedulePush();
   },
 
   getCategoryById: (id) => {
@@ -299,7 +305,6 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
               keywords: JSON.stringify(r.keywords),
               sort_order: r.sortOrder,
             })
-            .onConflictDoNothing({ target: categoriesTable.name })
             .run();
         } catch (err) {
           console.error('[budget-store] mergeRemoteCategories insert failed:', err);
@@ -322,6 +327,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       monthlyBudget: budgetStr ? parseFloat(budgetStr) : get().monthlyBudget,
       monthlySavingsTarget: savingsStr ? parseFloat(savingsStr) : get().monthlySavingsTarget,
       savingsBalance: balanceStr ? parseFloat(balanceStr) : get().savingsBalance,
+      monthlySavingsDeposited: readMonthlySavingsDeposits(),
     });
   },
 
@@ -330,6 +336,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     writeSetting(SETTINGS_KEYS.savingsBalance, newBalance.toString());
     addMonthlySavingsDeposit(amount);
     set({ savingsBalance: newBalance, monthlySavingsDeposited: get().monthlySavingsDeposited + amount });
+    schedulePush();
   },
 
   deductFromSavings: (amount) => {
@@ -340,6 +347,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       savingsBalance: newBalance,
       monthlySavingsDeposited: Math.max(0, get().monthlySavingsDeposited - amount),
     });
+    schedulePush();
   },
 
   spendFromSavings: (amount) => {
@@ -349,6 +357,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     // already counted as "used" from the budget when it was made.
     // Spending it now should not reduce the budget-used figure.
     set({ savingsBalance: newBalance });
+    schedulePush();
   },
 
   rolloverIfNeeded: () => {
@@ -394,6 +403,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
 
       // Mark this month as rolled over
       writeSetting(SETTINGS_KEYS.lastRolloverMonth, currentMonthKey);
+      schedulePush();
     } catch (err) {
       console.error('[budget-store] rolloverIfNeeded failed:', err);
     }
@@ -406,5 +416,6 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     const key = savingsDepositKey(new Date());
     writeSetting(key, '0');
     set({ monthlySavingsDeposited: 0 });
+    schedulePush();
   },
 }));
