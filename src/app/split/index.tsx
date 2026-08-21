@@ -15,8 +15,8 @@ import { useSplitStore } from '@/stores/split-store';
 import { pickContact } from '@/utils/contacts';
 import { formatCurrency } from '@/utils/format';
 import { chipColor } from '@/components/split/person-chips';
-import { balancesForGroup, oweLabel } from '@/utils/split-engine';
-import { personColorIndex, uniquePeople } from '@/utils/split-people';
+import { balancesForGroup, pairwiseBalancesForUser, oweLabel } from '@/utils/split-engine';
+import { peopleKey, personColorIndex, uniquePeople } from '@/utils/split-people';
 
 export default function SplitListScreen() {
   const insets = useSafeAreaInsets();
@@ -155,27 +155,34 @@ export default function SplitListScreen() {
               );
             })
           : friends.map((f, i) => {
-              const fg = groups.find((g) => g.id === f.friendGroupId);
-              let amount: string | undefined;
-              let amountColor: string = Colors.textMuted;
-              if (fg) {
-                const ms = members.filter((m) => m.groupId === fg.id);
-                const self = ms.find((m) => m.isSelf);
-                const es = expenses.filter((e) => e.groupId === fg.id);
-                const ids = new Set(es.map((e) => e.id));
-                const bal = balancesForGroup(
-                  ms,
-                  es,
-                  shares.filter((s) => ids.has(s.expenseId)),
-                  payments.filter((p) => p.groupId === fg.id),
-                );
-                const mine = self ? (bal[self.id] ?? 0) : 0;
-                const label = oweLabel(mine);
-                if (label.tone !== 'settled') {
-                  amount = formatCurrency(Math.abs(mine));
-                  amountColor = label.tone === 'owed' ? Colors.safe : Colors.exceeded;
+              let totalMine = 0;
+              const myMembers = members.filter(m => m.isSelf);
+              
+              for (const mySelf of myMembers) {
+                const friendsInGroup = members.filter(m => m.groupId === mySelf.groupId && !m.isSelf && peopleKey(m.displayName, m.phone) === f.key);
+                if (friendsInGroup.length === 0) continue;
+                
+                const es = expenses.filter(e => e.groupId === mySelf.groupId);
+                const ids = new Set(es.map(e => e.id));
+                const groupShares = shares.filter(s => ids.has(s.expenseId));
+                const groupPayments = payments.filter(p => p.groupId === mySelf.groupId);
+                
+                const pairwise = pairwiseBalancesForUser(mySelf.id, members.filter(m => m.groupId === mySelf.groupId), es, groupShares, groupPayments);
+                
+                for (const friend of friendsInGroup) {
+                  totalMine += (pairwise[friend.id] ?? 0);
                 }
               }
+              
+              const label = oweLabel(totalMine);
+              let amount: string | undefined;
+              let amountColor: string = Colors.textMuted;
+              
+              if (label.tone !== 'settled') {
+                amount = formatCurrency(Math.abs(totalMine));
+                amountColor = label.tone === 'owed' ? Colors.safe : Colors.exceeded;
+              }
+              
               return (
                 <SplitRow
                   key={f.key}
