@@ -1,5 +1,6 @@
 import { supabase } from '@/utils/supabase';
 import type { Expense, Category } from '@/types';
+import type { Subscription } from '@/stores/subscription-store';
 
 /**
  * Sync service — bridges local SQLite (offline-first) with Supabase.
@@ -102,6 +103,33 @@ export async function pushAllSettings(settings: Record<string, string>): Promise
 
   if (error) {
     console.error('[sync] pushAllSettings failed:', error.message);
+  }
+}
+
+
+export async function pushSubscriptions(subscriptions: Subscription[]): Promise<void> {
+  const userId = getUserId();
+  if (!userId || subscriptions.length === 0) return;
+
+  const rows = subscriptions.map((s) => ({
+    user_id: userId,
+    amount: s.amount,
+    amount_rule: s.amount_rule,
+    merchant: s.merchant,
+    category: s.category,
+    frequency: s.frequency,
+    start_date: s.start_date,
+    end_date: s.end_date,
+    is_active: s.is_active,
+    created_at: s.created_at,
+  }));
+
+  const { error } = await supabase
+    .from('subscriptions')
+    .upsert(rows, { onConflict: 'user_id,created_at' });
+
+  if (error) {
+    console.error('[sync] pushSubscriptions failed:', error.message);
   }
 }
 
@@ -210,6 +238,35 @@ function snapshotSettings(budget: {
  * Best-effort upload of the current local snapshot.
  * No-ops when signed out. Never throws to callers.
  */
+
+export async function pullSubscriptions(): Promise<Subscription[]> {
+  const userId = getUserId();
+  if (!userId) return [];
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('[sync] pullSubscriptions failed:', error.message);
+    return [];
+  }
+
+  return (data || []).map((row) => ({
+    id: 0,
+    amount: row.amount,
+    amount_rule: row.amount_rule,
+    merchant: row.merchant,
+    category: row.category,
+    frequency: row.frequency,
+    start_date: row.start_date,
+    end_date: row.end_date,
+    is_active: row.is_active,
+    created_at: row.created_at,
+  }));
+}
+
 export function schedulePush(): void {
   if (!getUserId()) return;
 
@@ -217,10 +274,12 @@ export function schedulePush(): void {
     try {
       const { useExpenseStore } = await import('@/stores/expense-store');
       const { useBudgetStore } = await import('@/stores/budget-store');
+      const { useSubscriptionStore } = await import('@/stores/subscription-store');
       await Promise.all([
         pushExpenses(useExpenseStore.getState().expenses),
         pushCategories(useBudgetStore.getState().categories),
         pushAllSettings(snapshotSettings(useBudgetStore.getState())),
+        pushSubscriptions(useSubscriptionStore.getState().subscriptions),
       ]);
     } catch (err) {
       console.error('[sync] schedulePush failed:', err);
@@ -234,15 +293,17 @@ export async function fullSync(): Promise<void> {
 
   try {
     // Pull remote data
-    const [remoteExpenses, remoteCategories, remoteSettings] = await Promise.all([
+    const [remoteExpenses, remoteCategories, remoteSettings, remoteSubscriptions] = await Promise.all([
       pullExpenses(),
       pullCategories(),
       pullSettings(),
+      pullSubscriptions(),
     ]);
 
     // Merge into local stores
     const { useExpenseStore } = await import('@/stores/expense-store');
     const { useBudgetStore } = await import('@/stores/budget-store');
+    const { useSubscriptionStore } = await import('@/stores/subscription-store');
 
     // If remote has data, replace local (first sync on a new device)
     if (remoteExpenses.length > 0) {
@@ -254,12 +315,16 @@ export async function fullSync(): Promise<void> {
     if (Object.keys(remoteSettings).length > 0) {
       useBudgetStore.getState().mergeRemoteSettings(remoteSettings);
     }
+    if (remoteSubscriptions.length > 0) {
+      useSubscriptionStore.getState().mergeRemoteSubscriptions(remoteSubscriptions);
+    }
 
     // Push local data back (catches any local-only mutations)
     await Promise.all([
       pushExpenses(useExpenseStore.getState().expenses),
       pushCategories(useBudgetStore.getState().categories),
       pushAllSettings(snapshotSettings(useBudgetStore.getState())),
+      pushSubscriptions(useSubscriptionStore.getState().subscriptions),
     ]);
   } catch (err) {
     console.error('[sync] fullSync failed:', err);
