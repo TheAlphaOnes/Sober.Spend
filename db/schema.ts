@@ -243,6 +243,18 @@ const CREATE_STATEMENTS = [
     occurred_at TEXT NOT NULL,
     deleted_at TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    amount REAL NOT NULL,
+    amount_rule TEXT NOT NULL,
+    merchant TEXT NOT NULL,
+    category TEXT NOT NULL,
+    frequency TEXT NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL
+  )`,
 ];
 
 for (const stmt of CREATE_STATEMENTS) {
