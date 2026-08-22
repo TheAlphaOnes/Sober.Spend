@@ -268,3 +268,16 @@ try {
 }
 
 export const db = drizzle(sqlite);
+
+export const subscriptions = sqliteTable('subscriptions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  amount: real('amount').notNull(),
+  amount_rule: text('amount_rule').notNull(),
+  merchant: text('merchant').notNull(),
+  category: text('category').notNull(),
+  frequency: text('frequency').notNull(),
+  start_date: text('start_date').notNull(),
+  end_date: text('end_date').notNull(),
+  is_active: integer('is_active').notNull().default(1),
+  created_at: text('created_at').notNull(),
+});

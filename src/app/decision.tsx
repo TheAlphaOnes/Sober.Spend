@@ -21,13 +21,14 @@ import { Borders, Colors, Fonts, FontSizes, Radii, Spacing } from '@/constants/t
 import { useAuthStore } from '@/stores/auth-store';
 import { useBudgetStore } from '@/stores/budget-store';
 import { useExpenseStore } from '@/stores/expense-store';
+import { useSubscriptionStore } from '@/stores/subscription-store';
 import { useSplitStore } from '@/stores/split-store';
 import type { CategoryId } from '@/types';
 import { currentMonthExpenses } from '@/utils/budget-engine';
 import { evaluateTransaction } from '@/utils/decision-engine';
 import { formatCurrency, sanitizeNumericInput } from '@/utils/format';
 import { getIcon } from '@/utils/icons';
-import { buildUPIDeepLink, saveVpaCategory } from '@/utils/upi-parser';
+import { buildUPIDeepLink, buildUPIMandateLink, saveVpaCategory } from '@/utils/upi-parser';
 import { pickContact } from '@/utils/contacts';
 
 type SplitTarget = 
@@ -43,6 +44,7 @@ export default function DecisionScreen() {
   const confirmPending = useExpenseStore((s) => s.confirmPendingTransaction);
   const setPending = useExpenseStore((s) => s.setPendingTransaction);
   const expenses = useExpenseStore((s) => s.expenses);
+  const addSubscription = useSubscriptionStore((s) => s.addSubscription);
   const { monthlyBudget, monthlySavingsDeposited, categories } = useBudgetStore();
 
   const user = useAuthStore((s) => s.user);
@@ -424,9 +426,11 @@ export default function DecisionScreen() {
               ? 'Enter an amount'
               : isUnknown
                 ? 'Pick a category first'
-                : decision.warningLevel === 'exceeded'
-                  ? 'Send It Anyway'
-                  : 'Pay Up'
+                : pendingTransaction.isMandate
+                  ? 'Setup AutoPay'
+                  : decision.warningLevel === 'exceeded'
+                    ? 'Send It Anyway'
+                    : 'Pay Up'
           }
           variant={
             amountValue <= 0 || isUnknown

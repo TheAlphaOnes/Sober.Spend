@@ -8,6 +8,7 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { Borders, Colors, Fonts, FontSizes, Radii, Spacing } from '@/constants/theme';
 import { useBudgetStore } from '@/stores/budget-store';
 import { useExpenseStore } from '@/stores/expense-store';
+import { useSubscriptionStore } from '@/stores/subscription-store';
 import { useSplitStore } from '@/stores/split-store';
 import { useWishlistStore } from '@/stores/wishlist-store';
 import { currentMonthExpenses, spentByCategory, totalSpent } from '@/utils/budget-engine';
@@ -29,6 +30,18 @@ export default function DashboardScreen() {
     useBudgetStore();
   const { items: wishlistItems, loadWishlist } = useWishlistStore();
   const loadSplit = useSplitStore((s) => s.loadSplit);
+  const subscriptions = useSubscriptionStore((s) => s.subscriptions);
+  const activeSubsMonthly = useMemo(() => {
+    return subscriptions
+      .filter((sub) => sub.is_active === 1)
+      .reduce((sum, sub) => {
+        let multiplier = 1;
+        if (sub.frequency === 'WEEKLY') multiplier = 4.33;
+        else if (sub.frequency === 'YEARLY') multiplier = 1/12;
+        return sum + (sub.amount * multiplier);
+      }, 0);
+  }, [subscriptions]);
+
 
   const monthExpenses = useMemo(
     () => currentMonthExpenses(expenses),
@@ -117,6 +130,7 @@ export default function DashboardScreen() {
       loadExpenses();
       loadWishlist();
       loadSplit();
+      useSubscriptionStore.getState().loadSubscriptions();
     }, [rolloverIfNeeded, loadSettings, loadExpenses, loadWishlist, loadSplit]),
   );
 
@@ -150,7 +164,7 @@ export default function DashboardScreen() {
 
         {/* Budget Summary — hero card, springs in */}
         <Animated.View entering={FadeIn.delay(50).duration(200)}>
-          <BudgetSummary totalSpent={totalUsed} monthlyBudget={monthlyBudget} />
+          <BudgetSummary totalSpent={totalUsed} totalSubscriptions={activeSubsMonthly} monthlyBudget={monthlyBudget} />
         </Animated.View>
 
         {/* Risk Banner — fades in after hero */}

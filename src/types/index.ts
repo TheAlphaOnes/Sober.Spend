@@ -125,13 +125,16 @@ export interface PendingTransaction {
   amount: number;
   category: string;
   note?: string;
-  /** UPI VPA (Virtual Payment Address) from the scanned QR code. */
   pa?: string;
-  aiRoast?: string;
-  budgetStatus?: string;
+  isMandate?: boolean;
+  amrule?: string;
+  recur?: string;
+  validitystart?: string;
+  validityend?: string;
 }
 
 export interface UPIData {
+  type?: 'pay' | 'mandate';
   pa?: string;
   pn?: string;
   am?: string;
@@ -142,6 +145,10 @@ export interface UPIData {
   mam?: string;
   tid?: string;
   url?: string;
+  amrule?: string;
+  recur?: string;
+  validitystart?: string;
+  validityend?: string;
 }
 
 // ---------------------------------------------------------------------------

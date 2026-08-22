@@ -41,8 +41,12 @@ export function saveVpaCategory(vpa: string, category: string): void {
  */
 export function parseUPIString(raw: string): UPIData | null {
   const trimmed = raw.trim();
-
-  if (!trimmed.toLowerCase().startsWith('upi://pay')) {
+  const lower = trimmed.toLowerCase();
+  
+  let type: 'pay' | 'mandate' = 'pay';
+  if (lower.startsWith('upi://mandate')) {
+    type = 'mandate';
+  } else if (!lower.startsWith('upi://pay')) {
     return null;
   }
 
@@ -63,9 +67,14 @@ export function parseUPIString(raw: string): UPIData | null {
   if (!params.pa) return null;
 
   return {
+    type,
     pa: params.pa,
     pn: params.pn,
     am: params.am,
+    amrule: params.amrule,
+    recur: params.recur,
+    validitystart: params.validitystart,
+    validityend: params.validityend,
     cu: params.cu || 'INR',
     mc: params.mc,
     tr: params.tr,
@@ -111,6 +120,11 @@ export function upiToPendingTransaction(
     category: category ?? 'Other',
     note: upi.tn,
     pa: upi.pa,
+    isMandate: upi.type === 'mandate',
+    amrule: upi.amrule,
+    recur: upi.recur,
+    validitystart: upi.validitystart,
+    validityend: upi.validityend,
   };
 }
 
@@ -167,3 +181,26 @@ export const MCC_DESCRIPTIONS: Record<string, string> = {
   '4900': 'Utilities',
   '6300': 'Insurance',
 };
+
+export function buildUPIMandateLink(
+  vpa: string,
+  name: string,
+  amount: number,
+  amrule: string = 'MAX',
+  recur: string = 'MONTHLY',
+  note?: string,
+): string {
+  const params = new URLSearchParams({
+    pa: vpa,
+    pn: name,
+    amrule: amrule,
+    recur: recur,
+  });
+  if (amount > 0) {
+    params.set('am', amount.toFixed(2));
+  }
+  if (note) {
+    params.set('tn', note);
+  }
+  return `upi://mandate?${params.toString()}`;
+}

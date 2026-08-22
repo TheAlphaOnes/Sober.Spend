@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 interface BudgetSummaryProps {
+  totalSubscriptions?: number;
   totalSpent: number;
   monthlyBudget: number;
 }
@@ -24,19 +25,26 @@ interface BudgetSummaryProps {
  * spilling red), the percentage tilts slightly like it's falling off,
  * and the card border turns red. No shaking — just looks busted.
  */
-export function BudgetSummary({ totalSpent, monthlyBudget }: BudgetSummaryProps) {
-  const remaining = monthlyBudget - totalSpent;
+export function BudgetSummary({ totalSpent, totalSubscriptions = 0, monthlyBudget }: BudgetSummaryProps) {
+  const committed = totalSpent + totalSubscriptions;
+  const remaining = monthlyBudget - committed;
   const isOver = remaining < 0;
   const isAtLimit = !isOver && remaining === 0;
-  const rawPercent = monthlyBudget > 0 ? Math.round((totalSpent / monthlyBudget) * 100) : 0;
-  const barPercent = Math.min(rawPercent, 100);
-  const isFull = barPercent >= 100;
+  
+  const rawSpentPercent = monthlyBudget > 0 ? (totalSpent / monthlyBudget) * 100 : 0;
+  const rawSubPercent = monthlyBudget > 0 ? (totalSubscriptions / monthlyBudget) * 100 : 0;
+  
+  const barSpentPercent = Math.min(rawSpentPercent, 100);
+  const barSubPercent = Math.min(rawSubPercent, 100 - barSpentPercent);
+  
+  const isFull = barSpentPercent + barSubPercent >= 100;
+  const rawTotalPercent = rawSpentPercent + rawSubPercent;
 
   const statusColor =
     isOver ? Colors.exceeded
-    : rawPercent >= 100 ? Colors.nearLimit
-    : rawPercent >= 80 ? Colors.nearLimit
-    : rawPercent >= 50 ? Colors.orange
+    : rawTotalPercent >= 100 ? Colors.nearLimit
+    : rawTotalPercent >= 80 ? Colors.nearLimit
+    : rawTotalPercent >= 50 ? Colors.orange
     : Colors.safe;
 
   // Slight tilt on the percentage when overspent — looks like it's
@@ -75,7 +83,7 @@ export function BudgetSummary({ totalSpent, monthlyBudget }: BudgetSummaryProps)
         <View style={styles.middleRow}>
           <Animated.View style={tiltStyle}>
             <Text style={[styles.percentText, { color: statusColor }]}>
-              {rawPercent}%
+              {Math.round(rawTotalPercent)}%
             </Text>
             <Text style={[styles.spentText, { color: statusColor }]}>SPENT</Text>
           </Animated.View>
@@ -96,12 +104,24 @@ export function BudgetSummary({ totalSpent, monthlyBudget }: BudgetSummaryProps)
               style={[
                 styles.barFill,
                 {
-                  width: `${barPercent}%`,
+                  width: `${barSpentPercent}%`,
                   backgroundColor: statusColor,
-                  borderRightWidth: isFull ? 0 : Borders.thick,
+                  borderRightWidth: isFull && barSubPercent === 0 ? 0 : Borders.thick,
                 },
               ]}
             />
+            {barSubPercent > 0 && (
+              <View
+                style={[
+                  styles.barFill,
+                  {
+                    width: `${barSubPercent}%`,
+                    backgroundColor: Colors.purple,
+                    borderRightWidth: isFull ? 0 : Borders.thick,
+                  },
+                ]}
+              />
+            )}
             {/* Overflow spill — a jagged red block that sticks out past
                 the bar's right edge when overspent. */}
             {isOver && (

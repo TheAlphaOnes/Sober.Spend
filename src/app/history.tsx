@@ -9,13 +9,14 @@ import {
 } from '@/constants/theme';
 import { useBudgetStore } from '@/stores/budget-store';
 import { useExpenseStore } from '@/stores/expense-store';
+import { useSubscriptionStore } from '@/stores/subscription-store';
 import { formatCurrency, formatDate } from '@/utils/format';
 import { getIcon } from '@/utils/icons';
 import { useFocusEffect } from 'expo-router';
 import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
-  Circle,
+  Circle, RefreshCw, XCircle, PlayCircle,
   LayoutGrid,
 } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
@@ -40,11 +41,13 @@ export default function HistoryScreen() {
 
   const [filter, setFilter] = useState<FilterKey>('all');
   const [sortMode, setSortMode] = useState<SortMode>('newest');
+  const [tab, setTab] = useState<'expenses' | 'subscriptions'>('expenses');
 
   useFocusEffect(
     useCallback(() => {
       loadSettings();
       loadExpenses();
+      useSubscriptionStore.getState().loadSubscriptions();
     }, [loadSettings, loadExpenses]),
   );
 
@@ -77,6 +80,7 @@ export default function HistoryScreen() {
     [filtered],
   );
 
+  const { subscriptions, toggleSubscription, removeSubscription } = useSubscriptionStore();
   const grouped = useMemo(() => {
     if (sortMode === 'highest' || sortMode === 'lowest') {
       return [{ label: '', items: filtered }];
@@ -248,6 +252,81 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.bg,
+  },
+
+  tabRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+    alignItems: 'center',
+  },
+  tabBtnActive: {
+    borderBottomColor: Colors.accent,
+  },
+  tabText: {
+    fontFamily: Fonts.display,
+    fontSize: FontSizes.sm,
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+  },
+  tabTextActive: {
+    color: Colors.accent,
+  },
+  subCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radii.md,
+    marginBottom: Spacing.sm,
+    borderWidth: Borders.thin,
+    borderColor: Colors.border,
+  },
+  subLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  subIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: Borders.thin,
+    borderColor: Colors.border,
+  },
+  subName: {
+    fontFamily: Fonts.display,
+    fontSize: FontSizes.md,
+    color: Colors.white,
+  },
+  subDetail: {
+    fontFamily: Fonts.display,
+    fontSize: FontSizes.xs,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  subRight: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  subAmount: {
+    fontFamily: Fonts.display,
+    fontSize: FontSizes.md,
+    color: Colors.white,
+  },
+  subAction: {
+    padding: Spacing.xs,
   },
   header: {
     flexDirection: 'row',
