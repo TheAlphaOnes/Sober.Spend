@@ -138,7 +138,7 @@ export default function PersonScreen() {
               title: 'Payment to ' + friend.displayName,
               subtitle: groupName,
               amount: p.amount,
-              tone: Colors.safe,
+              tone: Colors.exceeded,
             });
           } else if (p.fromId === friend.id && p.toId === mySelf.id) {
             items.push({
@@ -148,7 +148,7 @@ export default function PersonScreen() {
               title: 'Payment from ' + friend.displayName,
               subtitle: groupName,
               amount: -p.amount,
-              tone: Colors.exceeded,
+              tone: Colors.safe,
             });
           }
         }
@@ -196,7 +196,9 @@ export default function PersonScreen() {
             <Text style={styles.netSub}>{overallBalance?.label?.text || ''}</Text>
           </Animated.View>
         ) : (
-          <Text style={styles.netSub}>No expenses yet. Add an expense between you two.</Text>
+          <Text style={[styles.netSub, history.length > 0 && { color: Colors.safe, fontFamily: Fonts.display, fontSize: FontSizes.md }]}>
+            {history.length > 0 ? "You're all settled up!" : "No expenses yet. Add an expense between you two."}
+          </Text>
         )}
 
         {sharedGroups.length > 0 ? (
